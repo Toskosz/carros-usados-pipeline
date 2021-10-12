@@ -117,7 +117,7 @@ def get_recent_cars() -> pd.DataFrame:
         for carro in carros:
             carros_webmotors = carrega_carro_df_wh(carro, carros_webmotors)
 
-        # 5 minutes batching
+        # 30 minutes batching
         if time.time() > timeout:
             break
 
