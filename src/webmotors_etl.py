@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+from datetime import datetime
 import time
 from time import sleep
 
@@ -69,6 +70,8 @@ def carrega_carro_df_wh(carro, df):
     if 'FipePercent' in carro.keys():
         tmp_row['PORCENTAGEM_FIPE'] = carro['FipePercent']
 
+    tmp_row['DATA_EXTRACAO'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
     df = df.append(tmp_row, ignore_index=True)
     
     return df
@@ -97,6 +100,7 @@ def get_recent_cars():
         for carro in carros:
             carros_webmotors = carrega_carro_df_wh(carro, carros_webmotors)
 
+        # 5 minutes batching
         if time.time() > timeout:
             break
 
