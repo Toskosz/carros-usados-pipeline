@@ -19,11 +19,9 @@ req_headers = {
     'User-Agent':	'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0'
 }
 
-def carrega_carro_df_wh(carro, df):
-    tmp_row = {}
-    tmp_row['ID'] = carro['UniqueId']
 
-    specs = carro['Specification']
+def carrega_specs(tmp_row, specs) -> dict:
+
     tmp_row['TITULO'] = specs['Title']
     tmp_row['FABRICANTE'] = specs['Make']['Value']
     tmp_row['MODELO'] = specs['Model']['Value']
@@ -49,7 +47,9 @@ def carrega_carro_df_wh(carro, df):
     tmp_row['BLINDADO'] = specs['Armored']
     tmp_row['COR'] = specs['Color']['Primary']
 
-    vendedor = carro['Seller']
+    return tmp_row
+
+def carrega_vendedor(tmp_row, vendedor) -> dict:
     tmp_row['TIPO_VENDEDOR'] = vendedor['SellerType']
 
     if 'City' in vendedor.keys(): 
@@ -59,10 +59,27 @@ def carrega_carro_df_wh(carro, df):
     tmp_row['SCORE_VENDEDOR'] = vendedor['DealerScore']
     tmp_row['ENTREGA?'] = vendedor['CarDelivery']
     tmp_row['TROCA_COM_TROCO'] = vendedor['TrocaComTroco']
-    
-    precos = carro['Prices']
+
+    return tmp_row
+
+def carrega_precos(tmp_row, precos) -> dict:
     tmp_row['PRECO'] = precos['Price']
     tmp_row['PRECO_DESEJADO'] = precos['SearchPrice']
+    return tmp_row
+
+def carrega_carro_df_wh(carro, df) -> pd.DataFrame:
+    tmp_row = {}
+    tmp_row['ID'] = carro['UniqueId']
+
+    specs = carro['Specification']
+    tmp_row = carrega_specs(tmp_row, specs)
+
+    vendedor = carro['Seller']
+    tmp_row = carrega_vendedor(tmp_row, vendedor)
+    
+    
+    precos = carro['Prices']
+    tmp_row = carrega_precos(tmp_row, precos)
 
     if 'LongComment' in carro.keys():
         tmp_row['COMENTARIO_DONO'] = carro['LongComment']
@@ -77,7 +94,7 @@ def carrega_carro_df_wh(carro, df):
     return df
 
 
-def get_recent_cars():
+def get_recent_cars() -> pd.DataFrame:
     # DataFrame for batching
     carros_webmotors = pd.DataFrame(columns=['ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO','OBSERVACOES','BLINDADO','COR'
     ,'TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA?','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE'])
@@ -113,5 +130,9 @@ def get_recent_cars():
     carros_webmotors.drop_duplicates(inplace=True)
     
     return carros_webmotors
+
+def run() -> None:
+    data = get_recent_cars()
+
 
 
