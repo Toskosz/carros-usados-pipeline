@@ -95,7 +95,7 @@ def get_recent_cars():
         data = response.json()
         carros = data['SearchResults']
         for carro in carros:
-            carros_webmotors = carrega_carro_df(carro, carros_webmotors)
+            carros_webmotors = carrega_carro_df_wh(carro, carros_webmotors)
 
         if time.time() > timeout:
             break
