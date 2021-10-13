@@ -3,6 +3,8 @@ import pandas as pd
 from datetime import datetime
 import time
 from time import sleep
+from warehouse import WarehouseEngine
+from util.creds import get_warehouse_creds
 
 
 req_headers = {
@@ -93,7 +95,6 @@ def carrega_carro_df_wh(carro, df) -> pd.DataFrame:
     
     return df
 
-
 def get_recent_cars() -> pd.DataFrame:
     # DataFrame for batching
     carros_webmotors = pd.DataFrame(columns=['ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO','OBSERVACOES','BLINDADO','COR'
@@ -133,6 +134,8 @@ def get_recent_cars() -> pd.DataFrame:
 
 def run() -> None:
     data = get_recent_cars()
+    engine = WarehouseEngine(**get_warehouse_creds()).insert_dataframe(data)
 
-
+if __name__ == '__main__':
+    run()
 

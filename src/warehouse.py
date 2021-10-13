@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from sqlalchemy import create_engine
 
 
@@ -8,7 +7,6 @@ class WarehouseEngine(object):
     ):
         self.conn_url = f'postgresql://{user}:{password}@{host}:{port}/{db}'
 
-    @contextmanager
-    def insert_dataframe(self, df):
+    def insert_dataframe(self, df, table_name):
         engine = create_engine(self.conn_url)
-        df.to_sql('table_name', engine)
+        df.to_sql(table_name, engine)
