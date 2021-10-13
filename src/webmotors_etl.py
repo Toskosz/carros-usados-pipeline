@@ -131,64 +131,6 @@ def get_recent_cars() -> pd.DataFrame:
     
     return carros_webmotors
 
-def _get_cars_insert_query() -> str:
-    return '''
-    INSERT INTO CARS.WEBMOTORS (
-        ID,
-        TITULO,
-        FABRICANTE,
-        MODELO,
-        VERSAO,
-        ANO_FABRICACAO,
-        ANO_MODELO,
-        KILOMETRAGEM,
-        TRANSMISSAO,
-        QNTD_PORTAS,
-        CORPO_VEICULO,
-        OBSERVACOES,
-        BLINDADO,
-        COR,
-        TIPO_VENDEDOR,
-        CIDADE_VENDEDOR,
-        ESTADO_VENDEDOR,
-        AD_TYPE,
-        SCORE_VENDEDOR,
-        ENTREGA?,
-        TROCA_COM_TROCO,
-        PRECO,
-        PRECO_DESEJADO,
-        COMENTARIO_DONO,
-        PORCENTAGEM_FIPE
-    )
-    VALUES (
-        %(ID)s,
-        %(TITULO)s,
-        %(FABRICANTE)s,
-        %(MODELO)s,
-        %(VERSAO)s,
-        %(ANO_FABRICACAO)s,
-        %(ANO_MODELO)s,
-        %(KILOMETRAGEM)s,
-        %(TRANSMISSAO)s,
-        %(QNTD_PORTAS)s,
-        %(CORPO_VEICULO)s,
-        %(OBSERVACOES)s,
-        %(BLINDADO)s,
-        %(COR)s,
-        %(TIPO_VENDEDOR)s,
-        %(CIDADE_VENDEDOR)s,
-        %(ESTADO_VENDEDOR)s,
-        %(AD_TYPE)s,
-        %(SCORE_VENDEDOR)s,
-        %(ENTREGA)s,
-        %(TROCA_COM_TROCO)s,
-        %(PRECO)s,
-        %(PRECO_DESEJADO)s,
-        %(COMENTARIO_DONO)s,
-        %(PORCENTAGEM_FIPE)s
-    );
-    '''
-
 def run() -> None:
     data = get_recent_cars()
 
