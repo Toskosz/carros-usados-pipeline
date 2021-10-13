@@ -57,7 +57,7 @@ def carrega_vendedor(tmp_row, vendedor) -> dict:
     tmp_row['ESTADO_VENDEDOR'] = vendedor['State']
     tmp_row['AD_TYPE'] = vendedor['AdType']['Value']
     tmp_row['SCORE_VENDEDOR'] = vendedor['DealerScore']
-    tmp_row['ENTREGA?'] = vendedor['CarDelivery']
+    tmp_row['ENTREGA_CARRO'] = vendedor['CarDelivery']
     tmp_row['TROCA_COM_TROCO'] = vendedor['TrocaComTroco']
 
     return tmp_row
@@ -97,7 +97,7 @@ def carrega_carro_df_wh(carro, df) -> pd.DataFrame:
 def get_recent_cars() -> pd.DataFrame:
     # DataFrame for batching
     carros_webmotors = pd.DataFrame(columns=['ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO','OBSERVACOES','BLINDADO','COR'
-    ,'TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA?','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE'])
+    ,'TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE'])
 
     # requisitions counter, for the ETL we want to make 300
     timeout = time.time() + 60*30   # 5 minutes from now
@@ -130,6 +130,64 @@ def get_recent_cars() -> pd.DataFrame:
     carros_webmotors.drop_duplicates(inplace=True)
     
     return carros_webmotors
+
+def _get_cars_insert_query() -> str:
+    return '''
+    INSERT INTO CARS.WEBMOTORS (
+        ID,
+        TITULO,
+        FABRICANTE,
+        MODELO,
+        VERSAO,
+        ANO_FABRICACAO,
+        ANO_MODELO,
+        KILOMETRAGEM,
+        TRANSMISSAO,
+        QNTD_PORTAS,
+        CORPO_VEICULO,
+        OBSERVACOES,
+        BLINDADO,
+        COR,
+        TIPO_VENDEDOR,
+        CIDADE_VENDEDOR,
+        ESTADO_VENDEDOR,
+        AD_TYPE,
+        SCORE_VENDEDOR,
+        ENTREGA?,
+        TROCA_COM_TROCO,
+        PRECO,
+        PRECO_DESEJADO,
+        COMENTARIO_DONO,
+        PORCENTAGEM_FIPE
+    )
+    VALUES (
+        %(ID)s,
+        %(TITULO)s,
+        %(FABRICANTE)s,
+        %(MODELO)s,
+        %(VERSAO)s,
+        %(ANO_FABRICACAO)s,
+        %(ANO_MODELO)s,
+        %(KILOMETRAGEM)s,
+        %(TRANSMISSAO)s,
+        %(QNTD_PORTAS)s,
+        %(CORPO_VEICULO)s,
+        %(OBSERVACOES)s,
+        %(BLINDADO)s,
+        %(COR)s,
+        %(TIPO_VENDEDOR)s,
+        %(CIDADE_VENDEDOR)s,
+        %(ESTADO_VENDEDOR)s,
+        %(AD_TYPE)s,
+        %(SCORE_VENDEDOR)s,
+        %(ENTREGA)s,
+        %(TROCA_COM_TROCO)s,
+        %(PRECO)s,
+        %(PRECO_DESEJADO)s,
+        %(COMENTARIO_DONO)s,
+        %(PORCENTAGEM_FIPE)s
+    );
+    '''
 
 def run() -> None:
     data = get_recent_cars()
