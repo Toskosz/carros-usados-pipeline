@@ -133,8 +133,7 @@ def get_recent_cars() -> pd.DataFrame:
     return carros_webmotors
 
 def run() -> None:
-    data = get_recent_cars()
-    engine = WarehouseEngine(**get_warehouse_creds()).insert_dataframe(data)
+    pass
 
 if __name__ == '__main__':
     run()
