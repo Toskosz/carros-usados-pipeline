@@ -7,134 +7,137 @@ from warehouse import WarehouseEngine
 from util.creds import get_warehouse_creds
 
 
-req_headers = {
-    'Accept':	'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Accept-Language': 'pt-BR,pt;q=0.8,en-US;q=0.5,en;q=0.3',
-    'Connection':	'keep-alive',
-    'Host':	'www.webmotors.com.br',
-    'Sec-Fetch-Dest':	'document',
-    'Sec-Fetch-Mode':	'navigate',
-    'Sec-Fetch-Site':	'none',
-    'Sec-Fetch-User':	'?1',
-    'Upgrade-Insecure-Requests':	'1',
-    'User-Agent':	'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0'
-}
+class WebmotorsExtractor:
+
+    def __init__(self) -> None:
+        self.req_headers = {
+            'Accept':	'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'pt-BR,pt;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Connection':	'keep-alive',
+            'Host':	'www.webmotors.com.br',
+            'Sec-Fetch-Dest':	'document',
+            'Sec-Fetch-Mode':	'navigate',
+            'Sec-Fetch-Site':	'none',
+            'Sec-Fetch-User':	'?1',
+            'Upgrade-Insecure-Requests':	'1',
+            'User-Agent':	'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0'
+        }
 
 
-def carrega_specs(tmp_row, specs) -> dict:
+    def __carrega_specs(tmp_row, specs) -> dict:
 
-    tmp_row['TITULO'] = specs['Title']
-    tmp_row['FABRICANTE'] = specs['Make']['Value']
-    tmp_row['MODELO'] = specs['Model']['Value']
-    tmp_row['VERSAO'] = specs['Version']['Value']
-    tmp_row['ANO_FABRICACAO'] = specs['YearFabrication']
-    tmp_row['ANO_MODELO'] = specs['YearModel']
-    tmp_row['KILOMETRAGEM'] = specs['Odometer']
-    tmp_row['TRANSMISSAO'] = specs['Transmission']
-    tmp_row['QNTD_PORTAS'] = specs['NumberPorts']
+        tmp_row['TITULO'] = specs['Title']
+        tmp_row['FABRICANTE'] = specs['Make']['Value']
+        tmp_row['MODELO'] = specs['Model']['Value']
+        tmp_row['VERSAO'] = specs['Version']['Value']
+        tmp_row['ANO_FABRICACAO'] = specs['YearFabrication']
+        tmp_row['ANO_MODELO'] = specs['YearModel']
+        tmp_row['KILOMETRAGEM'] = specs['Odometer']
+        tmp_row['TRANSMISSAO'] = specs['Transmission']
+        tmp_row['QNTD_PORTAS'] = specs['NumberPorts']
 
-    if 'BodyType' in specs.keys():
-        tmp_row['CORPO_VEICULO'] = specs['BodyType']
-    
-    if 'VehicleAttributes' in specs.keys():
-        atributos = specs['VehicleAttributes']
-        obs = ''
-        for atributo in atributos:
-            for _, atributo_desc in atributo.items():
-                obs += atributo_desc
-
-        tmp_row['OBSERVACOES'] = obs
+        if 'BodyType' in specs.keys():
+            tmp_row['CORPO_VEICULO'] = specs['BodyType']
         
-    tmp_row['BLINDADO'] = specs['Armored']
-    tmp_row['COR'] = specs['Color']['Primary']
+        if 'VehicleAttributes' in specs.keys():
+            atributos = specs['VehicleAttributes']
+            obs = ''
+            for atributo in atributos:
+                for _, atributo_desc in atributo.items():
+                    obs += atributo_desc
 
-    return tmp_row
+            tmp_row['OBSERVACOES'] = obs
+            
+        tmp_row['BLINDADO'] = specs['Armored']
+        tmp_row['COR'] = specs['Color']['Primary']
 
-def carrega_vendedor(tmp_row, vendedor) -> dict:
-    tmp_row['TIPO_VENDEDOR'] = vendedor['SellerType']
+        return tmp_row
 
-    if 'City' in vendedor.keys(): 
-        tmp_row['CIDADE_VENDEDOR'] = vendedor['City']
-    tmp_row['ESTADO_VENDEDOR'] = vendedor['State']
-    tmp_row['AD_TYPE'] = vendedor['AdType']['Value']
-    tmp_row['SCORE_VENDEDOR'] = vendedor['DealerScore']
-    tmp_row['ENTREGA_CARRO'] = vendedor['CarDelivery']
-    tmp_row['TROCA_COM_TROCO'] = vendedor['TrocaComTroco']
+    def __carrega_vendedor(tmp_row, vendedor) -> dict:
+        tmp_row['TIPO_VENDEDOR'] = vendedor['SellerType']
 
-    return tmp_row
+        if 'City' in vendedor.keys(): 
+            tmp_row['CIDADE_VENDEDOR'] = vendedor['City']
+        tmp_row['ESTADO_VENDEDOR'] = vendedor['State']
+        tmp_row['AD_TYPE'] = vendedor['AdType']['Value']
+        tmp_row['SCORE_VENDEDOR'] = vendedor['DealerScore']
+        tmp_row['ENTREGA_CARRO'] = vendedor['CarDelivery']
+        tmp_row['TROCA_COM_TROCO'] = vendedor['TrocaComTroco']
 
-def carrega_precos(tmp_row, precos) -> dict:
-    tmp_row['PRECO'] = precos['Price']
-    tmp_row['PRECO_DESEJADO'] = precos['SearchPrice']
-    return tmp_row
+        return tmp_row
 
-def carrega_carro_df_wh(carro, df) -> pd.DataFrame:
-    tmp_row = {}
-    tmp_row['ID'] = carro['UniqueId']
+    def __carrega_precos(tmp_row, precos) -> dict:
+        tmp_row['PRECO'] = precos['Price']
+        tmp_row['PRECO_DESEJADO'] = precos['SearchPrice']
+        return tmp_row
 
-    specs = carro['Specification']
-    tmp_row = carrega_specs(tmp_row, specs)
+    def __carrega_carro_df_wh(self, carro, df) -> pd.DataFrame:
+        tmp_row = {}
+        tmp_row['ID'] = carro['UniqueId']
 
-    vendedor = carro['Seller']
-    tmp_row = carrega_vendedor(tmp_row, vendedor)
-    
-    
-    precos = carro['Prices']
-    tmp_row = carrega_precos(tmp_row, precos)
+        specs = carro['Specification']
+        tmp_row = self.__carrega_specs(tmp_row, specs)
 
-    if 'LongComment' in carro.keys():
-        tmp_row['COMENTARIO_DONO'] = carro['LongComment']
-
-    if 'FipePercent' in carro.keys():
-        tmp_row['PORCENTAGEM_FIPE'] = carro['FipePercent']
-
-    tmp_row['DATA_EXTRACAO'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
-    df = df.append(tmp_row, ignore_index=True)
-    
-    return df
-
-def get_recent_cars() -> pd.DataFrame:
-    # DataFrame for batching
-    carros_webmotors = pd.DataFrame(columns=['ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO','OBSERVACOES','BLINDADO','COR'
-    ,'TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE'])
-
-    # requisitions counter, for the ETL we want to make 300
-    timeout = time.time() + 60*30   # 5 minutes from now
-    contador = 1
-
-    while True:
-        url = 'https://www.webmotors.com.br/api/search/car?url=https://www.webmotors.com.br/carros/estoque?o=8&actualPage='+str(contador)+'&displayPerPage=24&order=8&showMenu=true&showCount=true&showBreadCrumb=true&testAB=false&returnUrl=false'
+        vendedor = carro['Seller']
+        tmp_row = self.__carrega_vendedor(tmp_row, vendedor)
         
-        # Makes request and handles possibility of a 500 response
-        response = requests.get(url = url, headers=req_headers)
-        while response.status_code >= 500:
-            response = requests.get(url = url, headers=req_headers)
-
-
-        data = response.json()
-        carros = data['SearchResults']
-        for carro in carros:
-            carros_webmotors = carrega_carro_df_wh(carro, carros_webmotors)
-
-        # 30 minutes batching
-        if time.time() > timeout:
-            break
-
-        # next page
-        contador += 1
-
-        # API restrictions(?)
-        sleep(5)
         
-    carros_webmotors.drop_duplicates(inplace=True)
-    
-    return carros_webmotors
+        precos = carro['Prices']
+        tmp_row = self.__carrega_precos(tmp_row, precos)
 
-def run() -> None:
-    pass
+        if 'LongComment' in carro.keys():
+            tmp_row['COMENTARIO_DONO'] = carro['LongComment']
+
+        if 'FipePercent' in carro.keys():
+            tmp_row['PORCENTAGEM_FIPE'] = carro['FipePercent']
+
+        tmp_row['DATA_EXTRACAO'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        
+        return tmp_row
+
+    def get_recent_cars(self) -> pd.DataFrame:
+        # DataFrame for batching
+        carros_webmotors = pd.DataFrame(columns=['ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO','OBSERVACOES','BLINDADO','COR'
+        ,'TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE'])
+
+        # requisitions counter, for the ETL we want to make 300
+        timeout = time.time() + 60*30   # 5 minutes from now
+        contador = 1
+
+        while True:
+            url = 'https://www.webmotors.com.br/api/search/car?url=https://www.webmotors.com.br/carros/estoque?o=8&actualPage='+str(contador)+'&displayPerPage=24&order=8&showMenu=true&showCount=true&showBreadCrumb=true&testAB=false&returnUrl=false'
+            
+            # Makes request and handles possibility of a 500 response
+            response = requests.get(url = url, headers=self.req_headers)
+            while response.status_code >= 500:
+                response = requests.get(url = url, headers=self.req_headers)
+
+
+            data = response.json()
+            carros = data['SearchResults']
+            for carro in carros:
+                carro_row = self.__carrega_carro_df_wh(carro, carros_webmotors)
+                carros_webmotors = carros_webmotors.append(carro_row, ignore_index=True)
+
+            # 30 minutes batching
+            if time.time() > timeout:
+                break
+
+            # next page
+            contador += 1
+
+            # API restrictions(?)
+            sleep(5)
+            
+        carros_webmotors.drop_duplicates(inplace=True)
+        
+        return carros_webmotors
+
+    def run() -> None:
+        pass
 
 if __name__ == '__main__':
-    run()
+    extractor = WebmotorsExtractor()
+    extractor.run()
 
