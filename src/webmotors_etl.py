@@ -5,6 +5,7 @@ import time
 from time import sleep
 from warehouse import WarehouseEngine
 from util.creds import get_warehouse_creds
+import unidecode
 
 # Exemplo de resposta
 
@@ -42,12 +43,12 @@ from util.creds import get_warehouse_creds
 }
 '''
 
-
-
-
-
-
 class WebmotorsETL:
+
+#   Extraction part
+
+    def run() -> None:
+        pass
 
     def __init__(self) -> None:
         self.req_headers = {
@@ -63,7 +64,6 @@ class WebmotorsETL:
             'Upgrade-Insecure-Requests':	'1',
             'User-Agent':	'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0'
         }
-
 
     def __carrega_specs(tmp_row, specs) -> dict:
 
@@ -174,6 +174,10 @@ class WebmotorsETL:
         
         return carros_webmotors
 
-    def run() -> None:
-        pass
+#   Transforming part
 
+    def fix_fabricante(column):
+        # removes accents
+        column = column.str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode('utf-8')
+        # return uppercase
+        return column.str.upper()
