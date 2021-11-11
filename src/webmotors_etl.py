@@ -5,7 +5,6 @@ import time
 from time import sleep
 from warehouse import WarehouseEngine
 from util.creds import get_warehouse_creds
-import unidecode
 
 # Exemplo de resposta
 
@@ -176,8 +175,19 @@ class WebmotorsETL:
 
 #   Transforming part
 
-    def fix_fabricante(column):
+    def clean_str_column(column):
         # removes accents
         column = column.str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode('utf-8')
         # return uppercase
         return column.str.upper()
+
+    def to_upper(column):
+        # return uppercase
+        return column.str.upper()
+    
+    def to_str(column):
+        return column.astype(str)
+    
+    def compute_observations(column):
+        # todo: pass dict values as dummy columns
+        pass
