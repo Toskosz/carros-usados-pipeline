@@ -1,3 +1,4 @@
+from pandas.io.formats.format import SeriesFormatter
 import requests
 import pandas as pd
 from datetime import datetime
@@ -48,7 +49,9 @@ class WebmotorsETL:
 
 #   Extraction part
 
-    def run() -> None:
+    def run(self) -> None:
+        data = self.get_recent_cars()
+        data = self.clean_data(data)
         pass
 
     def __init__(self) -> None:
@@ -204,6 +207,12 @@ class WebmotorsETL:
 #   Transforming part
     # todo: fill null values for dummy columns
     # todo: remove column observaoces
+
+    def clean_data(self,data):
+        for coluna, lst_f in self.columns_func_assigns.items():
+            for f in lst_f:
+                data[coluna] = f(data[coluna])
+        return data
 
     def clean_str_column(column):
         # removes accents
