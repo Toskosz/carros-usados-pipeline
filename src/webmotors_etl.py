@@ -18,6 +18,7 @@ import numpy as np
     "VERSAO": "1.5 VVT TURBO iFLEX GSX CVT"
     "ANO_FABRICACAO": "2021",
     "ANO_MODELO": 2022,
+    "KILOMETRAGEM":12319
     "TRANSMISSAO": "Automática",
     "QNTD_PORTAS": "4",
     "CORPO_VEICULO": "Sedã",
@@ -63,6 +64,29 @@ class WebmotorsETL:
             'Sec-Fetch-User':	'?1',
             'Upgrade-Insecure-Requests':	'1',
             'User-Agent':	'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0'
+        }
+
+        self.columns_func_assigns = {
+            "TITULO": [self.clean_str_column],
+            "FABRICANTE": [self.clean_str_column],
+            "MODELO": [self.clean_str_column],
+            "VERSAO": [self.clean_str_column],
+            "ANO_FABRICACAO": [self.to_str],
+            "ANO_MODELO": [self.to_str],
+            "KILOMETRAGEM":[self.to_float],
+            "TRANSMISSAO": [self.clean_str_column],
+            "QNTD_PORTAS": [self.to_str],
+            "CORPO_VEICULO": [self.clean_str_column],
+            "BLINDADO": [self.compute_blindado_webmotors],
+            "COR": [self.clean_str_column],
+            "TIPO_VENDEDOR": [self.clean_str_column],
+            "CIDADE_VENDEDOR": [self.clean_str_column],
+            "ESTADO_VENDEDOR": [self.clean_str_column],
+            "TIPO_ANUNCIO": [self.clean_str_column],
+            "ENTREGA_CARRO": [self.compute_bool],
+            "TROCA_COM_TROCO": [self.compute_bool],
+            "PRECO": [self.to_float],
+            "FipePercent": [self.to_float]
         }
 
     def __carrega_specs(tmp_row, specs) -> dict:
@@ -179,6 +203,7 @@ class WebmotorsETL:
 
 #   Transforming part
     # todo: fill null values for dummy columns
+    # todo: remove column observaoces
 
     def clean_str_column(column):
         # removes accents
