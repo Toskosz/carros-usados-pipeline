@@ -55,6 +55,8 @@ class WebmotorsETL:
         pass
 
     def __init__(self) -> None:
+        self.dummy_columns = []
+
         self.req_headers = {
             'Accept':	'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -92,7 +94,7 @@ class WebmotorsETL:
             "FipePercent": [self.to_float]
         }
 
-    def __carrega_specs(tmp_row, specs) -> dict:
+    def __carrega_specs(self,tmp_row, specs) -> dict:
 
         tmp_row['TITULO'] = specs['Title']
         tmp_row['FABRICANTE'] = specs['Make']['Value']
@@ -113,9 +115,9 @@ class WebmotorsETL:
             for atributo in atributos:
                 for _, atributo_desc in atributo.items():
                     # dummy column
-                    tmp_row[atributo_desc] = 1
-                    # '.' for future split
-                    obs += '.'+atributo_desc
+                    tmp_name = atributo_desc.replace(' ', '_').upper()
+                    self.dummy_columns.append(tmp_name)
+                    tmp_row[tmp_name] = 1
 
             tmp_row['OBSERVACOES'] = obs
             
@@ -212,6 +214,9 @@ class WebmotorsETL:
         for coluna, lst_f in self.columns_func_assigns.items():
             for f in lst_f:
                 data[coluna] = f(data[coluna])
+
+        data[self.dummy_columns] = data[self.dummy_columns].fillna(value=0)
+        del data['OBSERVACOES']
         return data
 
     def clean_str_column(column):
