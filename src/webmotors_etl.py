@@ -5,6 +5,7 @@ import time
 from time import sleep
 from warehouse import WarehouseEngine
 from util.creds import get_warehouse_creds
+import numpy as np
 
 # Exemplo de resposta
 
@@ -84,7 +85,10 @@ class WebmotorsETL:
             obs = ''
             for atributo in atributos:
                 for _, atributo_desc in atributo.items():
-                    obs += atributo_desc
+                    # dummy column
+                    tmp_row[atributo_desc] = 1
+                    # '.' for future split
+                    obs += '.'+atributo_desc
 
             tmp_row['OBSERVACOES'] = obs
             
@@ -174,6 +178,7 @@ class WebmotorsETL:
         return carros_webmotors
 
 #   Transforming part
+    # todo: fill null values for dummy columns
 
     def clean_str_column(column):
         # removes accents
@@ -187,7 +192,15 @@ class WebmotorsETL:
     
     def to_str(column):
         return column.astype(str)
+
+    def compute_blindado_webmotors(column):
+        return np.where(column == 'N', 0, 1)
+
+    def compute_bool(column):
+        return np.where(column == 'true', 1, 0)
+
+    def to_float(column):
+        return column.astype(float)
+
     
-    def compute_observations(column):
-        # todo: pass dict values as dummy columns
-        pass
+    
