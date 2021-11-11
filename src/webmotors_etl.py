@@ -6,8 +6,48 @@ from time import sleep
 from warehouse import WarehouseEngine
 from util.creds import get_warehouse_creds
 
+# Exemplo de resposta
 
-class WebmotorsExtractor:
+'''
+{
+    "UniqueId": 39207015,
+    "TITULO": "CHERY ARRIZO 6 1.5 VVT TURBO iFLEX GSX CVT",
+    "FABRICANTE": "CHERY"
+    "MODELO": "ARRIZO 6"
+    "VERSAO": "1.5 VVT TURBO iFLEX GSX CVT"
+    "ANO_FABRICACAO": "2021",
+    "ANO_MODELO": 2022,
+    "TRANSMISSAO": "Automática",
+    "QNTD_PORTAS": "4",
+    "CORPO_VEICULO": "Sedã",
+    "OBSERVACOES": [
+        {
+            "Name": "Aceita troca"
+        },
+        {
+            "Name": "Garantia de fábrica"
+        }
+    ],
+    "BLINDADO": "N",
+    "COR": "Cinza"
+    "TIPO_VENDEDOR": "PJ",
+    "CIDADE_VENDEDOR": "São Paulo",
+    "ESTADO_VENDEDOR": "São Paulo (SP)",
+    "TIPO_ANUNCIO": "Montadora"
+    "ENTREGA_CARRO": true,
+    "TROCA_COM_TROCO": true,
+    "PRECO": 125990,
+    "COMENTARIO": "Ótima Oportunidade!!! - CAOACHERY Atlântica, localizada na Avenida Atlântica, 179 - Interlagos - São Paulo/SP, Nossos vendedores aguardam por sua visita, aceitamos seu veículo usado na troca com excelente avaliação, oferecemos financiamento com excelentes taxas de juros, aceitamos cartão de credito mediante política da Caoa, seminovos periciados comercializados apenas com laudo aprovado sem restrição, Nos resguardamos no direito de possíveis erros de digitação  A CAOA agradece a sua preferência.",
+    "FipePercent": 109
+}
+'''
+
+
+
+
+
+
+class WebmotorsETL:
 
     def __init__(self) -> None:
         self.req_headers = {
@@ -136,8 +176,4 @@ class WebmotorsExtractor:
 
     def run() -> None:
         pass
-
-if __name__ == '__main__':
-    extractor = WebmotorsExtractor()
-    extractor.run()
 
