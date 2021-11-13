@@ -51,7 +51,8 @@ class WebmotorsETL:
 
     def run(self) -> None:
         data = self.get_recent_cars()
-        data = self.clean_data(data)
+        clean_data = self.clean_data(data)
+        clean_data['DATA_CARGA'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         pass
 
     def __init__(self) -> None:
@@ -94,8 +95,8 @@ class WebmotorsETL:
             "FipePercent": [self.to_float]
         }
 
-    def __carrega_specs(self,tmp_row, specs) -> dict:
-
+    def __carrega_specs(self, specs) -> dict:
+        tmp_row = {}
         tmp_row['TITULO'] = specs['Title']
         tmp_row['FABRICANTE'] = specs['Make']['Value']
         tmp_row['MODELO'] = specs['Model']['Value']
@@ -126,7 +127,9 @@ class WebmotorsETL:
 
         return tmp_row
 
-    def __carrega_vendedor(tmp_row, vendedor) -> dict:
+    def __carrega_vendedor(vendedor) -> dict:
+        tmp_row = {}
+
         tmp_row['TIPO_VENDEDOR'] = vendedor['SellerType']
 
         if 'City' in vendedor.keys(): 
@@ -139,32 +142,33 @@ class WebmotorsETL:
 
         return tmp_row
 
-    def __carrega_precos(tmp_row, precos) -> dict:
+    def __carrega_precos(precos) -> dict:
+        tmp_row = {}
         tmp_row['PRECO'] = precos['Price']
         tmp_row['PRECO_DESEJADO'] = precos['SearchPrice']
         return tmp_row
 
-    def __carrega_carro_df_wh(self, carro, df) -> pd.DataFrame:
+    def __carrega_carro(self, carro) -> pd.DataFrame:
         tmp_row = {}
         tmp_row['ID'] = carro['UniqueId']
 
+        # SPECS
         specs = carro['Specification']
-        tmp_row = self.__carrega_specs(tmp_row, specs)
+        tmp_row.update(self.__carrega_specs(specs))
 
+        # VENDEDOR
         vendedor = carro['Seller']
-        tmp_row = self.__carrega_vendedor(tmp_row, vendedor)
+        tmp_row.update(self.__carrega_vendedor(vendedor))
         
-        
+        # PRECOS
         precos = carro['Prices']
-        tmp_row = self.__carrega_precos(tmp_row, precos)
+        tmp_row.update(self.__carrega_precos(precos))
 
         if 'LongComment' in carro.keys():
             tmp_row['COMENTARIO_DONO'] = carro['LongComment']
 
         if 'FipePercent' in carro.keys():
             tmp_row['PORCENTAGEM_FIPE'] = carro['FipePercent']
-
-        tmp_row['DATA_EXTRACAO'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         
         return tmp_row
 
@@ -189,7 +193,7 @@ class WebmotorsETL:
             data = response.json()
             carros = data['SearchResults']
             for carro in carros:
-                carro_row = self.__carrega_carro_df_wh(carro, carros_webmotors)
+                carro_row = self.__carrega_carro(carro)
                 carros_webmotors = carros_webmotors.append(carro_row, ignore_index=True)
 
             # 30 minutes batching
@@ -207,23 +211,24 @@ class WebmotorsETL:
         return carros_webmotors
 
 #   Transforming part
-    # todo: fill null values for dummy columns
-    # todo: remove column observaoces
 
     def clean_data(self,data):
+        # keeping it functional programming(?)
+        resulting_data = data.copy()
+
         for coluna, lst_f in self.columns_func_assigns.items():
             for f in lst_f:
-                data[coluna] = f(data[coluna])
+                resulting_data[coluna] = f(resulting_data[coluna])
 
-        data[self.dummy_columns] = data[self.dummy_columns].fillna(value=0)
-        del data['OBSERVACOES']
-        return data
+        resulting_data[self.dummy_columns] = resulting_data[self.dummy_columns].fillna(value=0)
+        del resulting_data['OBSERVACOES']
+        return resulting_data
 
     def clean_str_column(column):
         # removes accents
-        column = column.str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode('utf-8')
+        normalized_column = column.str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode('utf-8')
         # return uppercase
-        return column.str.upper()
+        return normalized_column.str.upper()
 
     def to_upper(column):
         # return uppercase
