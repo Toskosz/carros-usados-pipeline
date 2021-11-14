@@ -43,6 +43,41 @@ from util.warehouse import WarehouseConnection
     "PRECO": 125990,
     "COMENTARIO": "Ótima Oportunidade!!! - CAOACHERY Atlântica, localizada na Avenida Atlântica, 179 - Interlagos - São Paulo/SP, Nossos vendedores aguardam por sua visita, aceitamos seu veículo usado na troca com excelente avaliação, oferecemos financiamento com excelentes taxas de juros, aceitamos cartão de credito mediante política da Caoa, seminovos periciados comercializados apenas com laudo aprovado sem restrição, Nos resguardamos no direito de possíveis erros de digitação  A CAOA agradece a sua preferência.",
     "FipePercent": 109
+    'Airbag':'AIRBAG'
+    'Alarme':'ALARME'
+    'Ar condicionado':'AR_CONDICIONADO'
+    'Ar quente':'AR_QUENTE'
+    'Banco com regulagem de altura':'BANCO_REGULA_ALTURA'
+    'Bancos dianteiros com aquecimento':'BANCO_COM_AQUECIMENTO'
+    'Bancos em couro':'BANCO_DE_COURO'
+    'Capota marítima':'CAPOTA_MARITIMA'
+    'CD e mp3 player':'MP3_CD_PLAYER'
+    'CD player':'CD_PLAYER'
+    'Computador de bordo':'COMPUTAR_DE_BORDO'
+    'Controle automático de velocidade':'CONTROLE_AUTOMATICO_VEL'
+    'Controle de tração':'CONTROLE_TRACAO'
+    'Desembaçador traseiro':'DESEMBACADOR_TRASEIRO'
+    'Direção hidráulica':'DIR_HIDRAULICA'
+    'Disqueteira':'DISQUETEIRA'
+    'DVD player':'DVD_PLAYER'
+    'Encosto de cabeça traseiro':'ENCOSTO_CABECA_TRASEIRO'
+    'Farol de xenônio':'FAROL_DE_XENONIO'
+    'Freio abs':'FREIO_ABS'
+    'GPS':'GPS'
+    'Limpador traseiro':'LIMPADOR_TRASEIRO'
+    'Protetor de caçamba':'PROTETOR_CACAMBA'
+    'Rádio':'RADIO'
+    'Rádio e toca fitas':'RADIO_TOCAFICA'
+    'Retrovisor fotocrômico':'RETROVISOR_FOTOCROMICO'
+    'Retrovisores elétricos':'RETROVISOR_ELETRICO'
+    'Rodas de liga leve':'RODAS_LIGA_LEVE'
+    'Sensor de chuva':'SENSOR_DE_CHUVA'
+    'Sensor de estacionamento':'SENSOR_DE_ESTACIONAMENTO'
+    'Teto solar':'TETO_SOLAR'
+    'Tração 4x4':'TRACAO_QUATRO_POR_QUATRO'
+    'Travas elétricas':'TRAVAS_ELETRICAS'
+    'Vidros elétricos':'VIDROS_ELETRICOS'
+    'Volante com regulagem de altura':'VOLANTE_REG_ALTURA'
 }
 '''
 
@@ -57,7 +92,42 @@ class WebmotorsETL:
             'Licenciado':'LICENCIADO',
             'Todas as revisões feitas pela agenda do carro':'REVISOES_PELA_AGENDA_CARRO',
             'Todas as revisões feitas pela concessionária':'REVISOES_PELA_CONCESSIONARIA',
-            'Único dono':'UNICO_DONO'
+            'Único dono':'UNICO_DONO',
+            'Airbag':'AIRBAG',
+            'Alarme':'ALARME',
+            'Ar condicionado':'AR_CONDICIONADO',
+            'Ar quente':'AR_QUENTE',
+            'Banco com regulagem de altura':'BANCO_REGULA_ALTURA',
+            'Bancos dianteiros com aquecimento':'BANCO_COM_AQUECIMENTO',
+            'Bancos em couro':'BANCO_DE_COURO',
+            'Capota marítima':'CAPOTA_MARITIMA',
+            'CD e mp3 player':'MP3_CD_PLAYER',
+            'CD player':'CD_PLAYER',
+            'Computador de bordo':'COMPUTAR_DE_BORDO',
+            'Controle automático de velocidade':'CONTROLE_AUTOMATICO_VEL',
+            'Controle de tração':'CONTROLE_TRACAO',
+            'Desembaçador traseiro':'DESEMBACADOR_TRASEIRO',
+            'Direção hidráulica':'DIR_HIDRAULICA',
+            'Disqueteira':'DISQUETEIRA',
+            'DVD player':'DVD_PLAYER',
+            'Encosto de cabeça traseiro':'ENCOSTO_CABECA_TRASEIRO',
+            'Farol de xenônio':'FAROL_DE_XENONIO',
+            'Freio abs':'FREIO_ABS',
+            'GPS':'GPS',
+            'Limpador traseiro':'LIMPADOR_TRASEIRO',
+            'Protetor de caçamba':'PROTETOR_CACAMBA',
+            'Rádio':'RADIO',
+            'Rádio e toca fitas':'RADIO_TOCAFICA',
+            'Retrovisor fotocrômico':'RETROVISOR_FOTOCROMICO',
+            'Retrovisores elétricos':'RETROVISOR_ELETRICO',
+            'Rodas de liga leve':'RODAS_LIGA_LEVE',
+            'Sensor de chuva':'SENSOR_DE_CHUVA',
+            'Sensor de estacionamento':'SENSOR_DE_ESTACIONAMENTO',
+            'Teto solar':'TETO_SOLAR',
+            'Tração 4x4':'TRACAO_QUATRO_POR_QUATRO',
+            'Travas elétricas':'TRAVAS_ELETRICAS',
+            'Vidros elétricos':'VIDROS_ELETRICOS',
+            'Volante com regulagem de altura':'VOLANTE_REG_ALTURA'
         }
 
         self.req_headers = {
@@ -157,6 +227,20 @@ class WebmotorsETL:
         tmp_row['PRECO_DESEJADO'] = precos['SearchPrice']
         return tmp_row
 
+    def __get_optionals(self,id):
+        tmp_row = {}
+        op_url = "https://www.webmotors.com.br/api/detail/car/" + id
+        op_response = requests.get(url = op_url, headers=self.req_headers)
+        op_data = op_response.json()
+        tmp_specs = op_data['Specification']
+        optionals = tmp_specs['Optionals']
+
+        for option in optionals:
+            column_name = self.dummy_columns[option['Name']]
+            tmp_row[column_name] = 1
+
+        return tmp_row
+
     def __carrega_carro(self, carro) -> pd.DataFrame:
         tmp_row = {}
         tmp_row['AD_ID'] = carro['UniqueId']
@@ -179,6 +263,10 @@ class WebmotorsETL:
         if 'FipePercent' in carro.keys():
             tmp_row['PORCENTAGEM_FIPE'] = carro['FipePercent']
         
+        # OPTIONALS
+        optionals = self.__get_optionals(tmp_row['AD_ID'])
+        tmp_row.update(optionals)
+
         return tmp_row
 
     def get_recent_cars(self) -> pd.DataFrame:
