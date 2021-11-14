@@ -4,9 +4,10 @@ import pandas as pd
 from datetime import datetime
 import time
 from time import sleep
-from warehouse import WarehouseEngine
 from util.creds import get_warehouse_creds
 import numpy as np
+import psycopg2.extras as p
+from util.warehouse import WarehouseConnection
 
 # Exemplo de resposta
 
@@ -47,16 +48,17 @@ import numpy as np
 
 class WebmotorsETL:
 
-#   Extraction part
-
-    def run(self) -> None:
-        data = self.get_recent_cars()
-        clean_data = self.clean_data(data)
-        clean_data['DATA_CARGA'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        pass
-
     def __init__(self) -> None:
-        self.dummy_columns = []
+        self.dummy_columns = {
+            'Aceita troca':'ACEITA_TROCA',
+            'Alienado':'ALIENADO',
+            'Garantia de fábrica':'GARANTIA_DE_FABRICA',
+            'IPVA pago':'IPVA_PAGO',
+            'Licenciado':'LICENCIADO',
+            'Todas as revisões feitas pela agenda do carro':'REVISOES_PELA_AGENDA_CARRO',
+            'Todas as revisões feitas pela concessionária':'REVISOES_PELA_CONCESSIONARIA',
+            'Único dono':'UNICO_DONO'
+        }
 
         self.req_headers = {
             'Accept':	'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -92,8 +94,17 @@ class WebmotorsETL:
             "ENTREGA_CARRO": [self.compute_bool],
             "TROCA_COM_TROCO": [self.compute_bool],
             "PRECO": [self.to_float],
-            "FipePercent": [self.to_float]
+            "PORCENTAGEM_FIPE": [self.to_float]
         }
+
+    def run(self) -> None:
+        data = self.get_recent_cars()
+        clean_data = self.clean_data(data)
+        clean_data['DATA_CARGA'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
+            p.execute_batch(curr, self._get_exchange_insert_query(), clean_data.values)
+
+#   Extraction part
 
     def __carrega_specs(self, specs) -> dict:
         tmp_row = {}
@@ -115,10 +126,8 @@ class WebmotorsETL:
             obs = ''
             for atributo in atributos:
                 for _, atributo_desc in atributo.items():
-                    # dummy column
-                    tmp_name = atributo_desc.replace(' ', '_').upper()
-                    self.dummy_columns.append(tmp_name)
-                    tmp_row[tmp_name] = 1
+                    column_name = self.dummy_columns[atributo_desc]
+                    tmp_row[column_name] = 1
 
             tmp_row['OBSERVACOES'] = obs
             
@@ -150,7 +159,7 @@ class WebmotorsETL:
 
     def __carrega_carro(self, carro) -> pd.DataFrame:
         tmp_row = {}
-        tmp_row['ID'] = carro['UniqueId']
+        tmp_row['AD_ID'] = carro['UniqueId']
 
         # SPECS
         specs = carro['Specification']
@@ -174,8 +183,9 @@ class WebmotorsETL:
 
     def get_recent_cars(self) -> pd.DataFrame:
         # DataFrame for batching
-        carros_webmotors = pd.DataFrame(columns=['ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO','OBSERVACOES','BLINDADO','COR'
-        ,'TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE'])
+        carros_webmotors = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
+                'ACEITA_TROCA','ALIENADO','GARANTIA_DE_FABRICA','IPVA_PAGO','LICENCIADO','REVISOES_PELA_AGENDA_CARRO','REVISOES_PELA_CONCESSIONARIA','UNICO_DONO','BLINDADO','COR','TIPO_VENDEDOR',
+                'CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE'])
 
         # requisitions counter, for the ETL we want to make 300
         timeout = time.time() + 60*30   # 5 minutes from now
@@ -219,8 +229,12 @@ class WebmotorsETL:
         for coluna, lst_f in self.columns_func_assigns.items():
             for f in lst_f:
                 resulting_data[coluna] = f(resulting_data[coluna])
-
+        
+        # if dummy columns = 0 zero then car doesnt have feature so "0"
         resulting_data[self.dummy_columns] = resulting_data[self.dummy_columns].fillna(value=0)
+        
+        # data unavailable
+        resulting_data = resulting_data.fillna(value="INDISPONIVEL")
         del resulting_data['OBSERVACOES']
         return resulting_data
 
@@ -246,5 +260,94 @@ class WebmotorsETL:
     def to_float(column):
         return column.astype(float)
 
+#   Loading part
     
-    
+    def load():
+        df_columns = list(df)
+        # create (col1,col2,...)
+        columns = ",".join(df_columns)
+
+        # create VALUES('%s', '%s",...) one '%s' per column
+        values = "VALUES({})".format(",".join(["%s" for _ in df_columns])) 
+
+        #create INSERT INTO table (columns) VALUES('%s',...)
+        insert_stmt = "INSERT INTO {} ({}) {}".format(table,columns,values)
+
+        cur = conn.cursor()
+        psycopg2.extras.execute_batch(cur, insert_stmt, df.values)
+        conn.commit()
+        cur.close()
+
+    # SDE way of loading data
+
+    def _get_exchange_insert_query(self) -> str:
+        return '''
+        INSERT INTO STG.WEBMOTORS (
+            AD_ID,
+            TITULO,
+            FABRICANTE,
+            MODELO,
+            VERSAO,
+            ANO_FABRICACAO,
+            ANO_MODELO,
+            KILOMETRAGEM,
+            TRANSMISSAO,
+            QNTD_PORTAS,
+            CORPO_VEICULO,
+            ACEITA_TROCA,
+            ALIENADO,
+            GARANTIA_DE_FABRICA,
+            IPVA_PAGO,
+            LICENCIADO,
+            REVISOES_PELA_AGENDA_CARRO,
+            REVISOES_PELA_CONCESSIONARIA,
+            UNICO_DONO,
+            BLINDADO,
+            COR,
+            TIPO_VENDEDOR,
+            CIDADE_VENDEDOR,
+            ESTADO_VENDEDOR,
+            AD_TYPE,
+            SCORE_VENDEDOR,
+            ENTREGA_CARRO,
+            TROCA_COM_TROCO,
+            PRECO,
+            PRECO_DESEJADO,
+            COMENTARIO_DONO,
+            PORCENTAGEM_FIPE,
+        )
+        VALUES (
+            %(AD_ID)s,
+            %(TITULO)s,
+            %(FABRICANTE)s,
+            %(MODELO)s,
+            %(VERSAO)s,
+            %(ANO_FABRICACAO)s,
+            %(ANO_MODELO)s,
+            %(KILOMETRAGEM)s,
+            %(TRANSMISSAO)s,
+            %(QNTD_PORTAS)s,
+            %(CORPO_VEICULO)s,
+            %(ACEITA_TROCA)s,
+            %(ALIENADO)s,
+            %(GARANTIA_DE_FABRICA)s,
+            %(IPVA_PAGO)s,
+            %(LICENCIADO)s,
+            %(REVISOES_PELA_AGENDA_CARRO)s,
+            %(REVISOES_PELA_CONCESSIONARIA)s,
+            %(UNICO_DONO)s,
+            %(BLINDADO)s,
+            %(COR)s,
+            %(TIPO_VENDEDOR)s,
+            %(CIDADE_VENDEDOR)s,
+            %(ESTADO_VENDEDOR)s,
+            %(AD_TYPE)s,
+            %(SCORE_VENDEDOR)s,
+            %(ENTREGA_CARRO)s,
+            %(TROCA_COM_TROCO)s,
+            %(PRECO)s,
+            %(PRECO_DESEJADO)s,
+            %(COMENTARIO_DONO)s,
+            %(PORCENTAGEM_FIPE)s,
+        );
+        '''
