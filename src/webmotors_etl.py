@@ -262,24 +262,6 @@ class WebmotorsETL:
 
 #   Loading part
     
-    def load():
-        df_columns = list(df)
-        # create (col1,col2,...)
-        columns = ",".join(df_columns)
-
-        # create VALUES('%s', '%s",...) one '%s' per column
-        values = "VALUES({})".format(",".join(["%s" for _ in df_columns])) 
-
-        #create INSERT INTO table (columns) VALUES('%s',...)
-        insert_stmt = "INSERT INTO {} ({}) {}".format(table,columns,values)
-
-        cur = conn.cursor()
-        psycopg2.extras.execute_batch(cur, insert_stmt, df.values)
-        conn.commit()
-        cur.close()
-
-    # SDE way of loading data
-
     def _get_exchange_insert_query(self) -> str:
         return '''
         INSERT INTO STG.WEBMOTORS (
