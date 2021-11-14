@@ -193,13 +193,10 @@ class WebmotorsETL:
         
         if 'VehicleAttributes' in specs.keys():
             atributos = specs['VehicleAttributes']
-            obs = ''
             for atributo in atributos:
                 for _, atributo_desc in atributo.items():
                     column_name = self.dummy_columns[atributo_desc]
                     tmp_row[column_name] = 1
-
-            tmp_row['OBSERVACOES'] = obs
             
         tmp_row['BLINDADO'] = specs['Armored']
         tmp_row['COR'] = specs['Color']['Primary']
@@ -273,7 +270,11 @@ class WebmotorsETL:
         # DataFrame for batching
         carros_webmotors = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
                 'ACEITA_TROCA','ALIENADO','GARANTIA_DE_FABRICA','IPVA_PAGO','LICENCIADO','REVISOES_PELA_AGENDA_CARRO','REVISOES_PELA_CONCESSIONARIA','UNICO_DONO','BLINDADO','COR','TIPO_VENDEDOR',
-                'CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE'])
+                'CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE','AIRBAG',
+                'ALARME','AR_CONDICIONADO','AR_QUENTE','BANCO_REGULA_ALTURA','BANCO_COM_AQUECIMENTO','BANCO_DE_COURO','CAPOTA_MARITIMA','MP3_CD_PLAYER','CD_PLAYER','COMPUTAR_DE_BORDO',
+                'CONTROLE_AUTOMATICO_VEL','CONTROLE_TRACAO','DESEMBACADOR_TRASEIRO','DIR_HIDRAULICA','DISQUETEIRA','DVD_PLAYER','ENCOSTO_CABECA_TRASEIRO','FAROL_DE_XENONIO','FREIO_ABS',
+                'GPS','LIMPADOR_TRASEIRO','PROTETOR_CACAMBA','RADIO','RADIO_TOCAFICA','RETROVISOR_FOTOCROMICO','RETROVISOR_ELETRICO','RODAS_LIGA_LEVE','SENSOR_DE_CHUVA',
+                'SENSOR_DE_ESTACIONAMENTO','TETO_SOLAR','TRACAO_QUATRO_POR_QUATRO','TRAVAS_ELETRICAS','VIDROS_ELETRICOS','VOLANTE_REG_ALTURA'])
 
         # requisitions counter, for the ETL we want to make 300
         timeout = time.time() + 60*30   # 5 minutes from now
@@ -385,6 +386,42 @@ class WebmotorsETL:
             PRECO_DESEJADO,
             COMENTARIO_DONO,
             PORCENTAGEM_FIPE,
+            AIRBAG,
+            ALARME,
+            AR_CONDICIONADO,
+            AR_QUENTE,
+            BANCO_REGULA_ALTURA,
+            BANCO_COM_AQUECIMENTO,
+            BANCO_DE_COURO,
+            CAPOTA_MARITIMA,
+            MP3_CD_PLAYER,
+            CD_PLAYER,
+            COMPUTAR_DE_BORDO,
+            CONTROLE_AUTOMATICO_VEL,
+            CONTROLE_TRACAO,
+            DESEMBACADOR_TRASEIRO,
+            DIR_HIDRAULICA,
+            DISQUETEIRA,
+            DVD_PLAYER,
+            ENCOSTO_CABECA_TRASEIRO,
+            FAROL_DE_XENONIO,
+            FREIO_ABS,
+            GPS,
+            LIMPADOR_TRASEIRO,
+            PROTETOR_CACAMBA,
+            RADIO,
+            RADIO_TOCAFICA,
+            RETROVISOR_FOTOCROMICO,
+            RETROVISOR_ELETRICO,
+            RODAS_LIGA_LEVE,
+            SENSOR_DE_CHUVA,
+            SENSOR_DE_ESTACIONAMENTO,
+            TETO_SOLAR,
+            TRACAO_QUATRO_POR_QUATRO,
+            TRAVAS_ELETRICAS,
+            VIDROS_ELETRICOS,
+            VOLANTE_REG_ALTURA,
+            DATA_CARGA
         )
         VALUES (
             %(AD_ID)s,
@@ -419,5 +456,41 @@ class WebmotorsETL:
             %(PRECO_DESEJADO)s,
             %(COMENTARIO_DONO)s,
             %(PORCENTAGEM_FIPE)s,
+            %(AIRBAG)s,
+            %(ALARME)s,
+            %(AR_CONDICIONADO)s,
+            %(AR_QUENTE)s,
+            %(BANCO_REGULA_ALTURA)s,
+            %(BANCO_COM_AQUECIMENTO)s,
+            %(BANCO_DE_COURO)s,
+            %(CAPOTA_MARITIMA)s,
+            %(MP3_CD_PLAYER)s,
+            %(CD_PLAYER)s,
+            %(COMPUTAR_DE_BORDO)s,
+            %(CONTROLE_AUTOMATICO_VEL)s,
+            %(CONTROLE_TRACAO)s,
+            %(DESEMBACADOR_TRASEIRO)s,
+            %(DIR_HIDRAULICA)s,
+            %(DISQUETEIRA)s,
+            %(DVD_PLAYER)s,
+            %(ENCOSTO_CABECA_TRASEIRO)s,
+            %(FAROL_DE_XENONIO)s,
+            %(FREIO_ABS)s,
+            %(GPS)s,
+            %(LIMPADOR_TRASEIRO)s,
+            %(PROTETOR_CACAMBA)s,
+            %(RADIO)s,
+            %(RADIO_TOCAFICA)s,
+            %(RETROVISOR_FOTOCROMICO)s,
+            %(RETROVISOR_ELETRICO)s,
+            %(RODAS_LIGA_LEVE)s,
+            %(SENSOR_DE_CHUVA)s,
+            %(SENSOR_DE_ESTACIONAMENTO)s,
+            %(TETO_SOLAR)s,
+            %(TRACAO_QUATRO_POR_QUATRO)s,
+            %(TRAVAS_ELETRICAS)s,
+            %(VIDROS_ELETRICOS)s,
+            %(VOLANTE_REG_ALTURA)s,
+            %(DATA_CARGA)s
         );
         '''
