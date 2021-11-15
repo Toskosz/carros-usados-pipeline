@@ -161,12 +161,14 @@ class WebmotorsETL:
             "TIPO_VENDEDOR": [self.clean_str_column],
             "CIDADE_VENDEDOR": [self.clean_str_column],
             "ESTADO_VENDEDOR": [self.clean_str_column],
+            "UF_VENDEDOR": [self.clean_str_column],
             "TIPO_ANUNCIO": [self.clean_str_column],
             "ENTREGA_CARRO": [self.compute_bool],
             "TROCA_COM_TROCO": [self.compute_bool],
             "PRECO": [self.to_float],
             "PORCENTAGEM_FIPE": [self.to_float],
-            "COMBUSTIVEL": [self.clean_str_column]
+            "COMBUSTIVEL": [self.clean_str_column],
+            "COMENTARIO_DONO": [self.clean_str_column]
         }
 
     def run(self) -> None:
@@ -212,7 +214,12 @@ class WebmotorsETL:
 
         if 'City' in vendedor.keys(): 
             tmp_row['CIDADE_VENDEDOR'] = vendedor['City']
+
         tmp_row['ESTADO_VENDEDOR'] = vendedor['State']
+
+        tmp_row['UF_VENDEDOR'] = tmp_row['ESTADO_VENDEDOR'][tmp_row['ESTADO_VENDEDOR'].find("(")+1:tmp_row['ESTADO_VENDEDOR'].find(")")]
+        tmp_row['ESTADO_VENDEDOR'] = tmp_row['ESTADO_VENDEDOR'][:tmp_row['ESTADO_VENDEDOR'].find("(")]
+
         tmp_row['AD_TYPE'] = vendedor['AdType']['Value']
         tmp_row['SCORE_VENDEDOR'] = vendedor['DealerScore']
         tmp_row['ENTREGA_CARRO'] = vendedor['CarDelivery']
@@ -275,7 +282,7 @@ class WebmotorsETL:
         # DataFrame for batching
         carros_webmotors = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
                 'ACEITA_TROCA','ALIENADO','GARANTIA_DE_FABRICA','IPVA_PAGO','LICENCIADO','REVISOES_PELA_AGENDA_CARRO','REVISOES_PELA_CONCESSIONARIA','UNICO_DONO','BLINDADO','COR','TIPO_VENDEDOR',
-                'CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE','AIRBAG',
+                'CIDADE_VENDEDOR','ESTADO_VENDEDOR','UF_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE','AIRBAG',
                 'ALARME','AR_CONDICIONADO','AR_QUENTE','BANCO_REGULA_ALTURA','BANCO_COM_AQUECIMENTO','BANCO_DE_COURO','CAPOTA_MARITIMA','MP3_CD_PLAYER','CD_PLAYER','COMPUTAR_DE_BORDO',
                 'CONTROLE_AUTOMATICO_VEL','CONTROLE_TRACAO','DESEMBACADOR_TRASEIRO','DIR_HIDRAULICA','DISQUETEIRA','DVD_PLAYER','ENCOSTO_CABECA_TRASEIRO','FAROL_DE_XENONIO','FREIO_ABS',
                 'GPS','LIMPADOR_TRASEIRO','PROTETOR_CACAMBA','RADIO','RADIO_TOCAFICA','RETROVISOR_FOTOCROMICO','RETROVISOR_ELETRICO','RODAS_LIGA_LEVE','SENSOR_DE_CHUVA',
@@ -383,6 +390,7 @@ class WebmotorsETL:
             TIPO_VENDEDOR,
             CIDADE_VENDEDOR,
             ESTADO_VENDEDOR,
+            UF_VENDEDOR,
             AD_TYPE,
             SCORE_VENDEDOR,
             ENTREGA_CARRO,
@@ -454,6 +462,7 @@ class WebmotorsETL:
             %(TIPO_VENDEDOR)s,
             %(CIDADE_VENDEDOR)s,
             %(ESTADO_VENDEDOR)s,
+            %(UF_VENDEDOR)s,
             %(AD_TYPE)s,
             %(SCORE_VENDEDOR)s,
             %(ENTREGA_CARRO)s,
