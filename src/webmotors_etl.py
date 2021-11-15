@@ -78,6 +78,7 @@ from util.warehouse import WarehouseConnection
     'Travas elétricas':'TRAVAS_ELETRICAS'
     'Vidros elétricos':'VIDROS_ELETRICOS'
     'Volante com regulagem de altura':'VOLANTE_REG_ALTURA'
+    COMBUSTIVEL
 }
 '''
 
@@ -164,7 +165,8 @@ class WebmotorsETL:
             "ENTREGA_CARRO": [self.compute_bool],
             "TROCA_COM_TROCO": [self.compute_bool],
             "PRECO": [self.to_float],
-            "PORCENTAGEM_FIPE": [self.to_float]
+            "PORCENTAGEM_FIPE": [self.to_float],
+            "COMBUSTIVEL": [self.clean_str_column]
         }
 
     def run(self) -> None:
@@ -230,6 +232,9 @@ class WebmotorsETL:
         op_response = requests.get(url = op_url, headers=self.req_headers)
         op_data = op_response.json()
         tmp_specs = op_data['Specification']
+
+        tmp_row['COMBUSTIVEL'] = tmp_specs['Fuel']
+
         optionals = tmp_specs['Optionals']
 
         for option in optionals:
@@ -274,7 +279,7 @@ class WebmotorsETL:
                 'ALARME','AR_CONDICIONADO','AR_QUENTE','BANCO_REGULA_ALTURA','BANCO_COM_AQUECIMENTO','BANCO_DE_COURO','CAPOTA_MARITIMA','MP3_CD_PLAYER','CD_PLAYER','COMPUTAR_DE_BORDO',
                 'CONTROLE_AUTOMATICO_VEL','CONTROLE_TRACAO','DESEMBACADOR_TRASEIRO','DIR_HIDRAULICA','DISQUETEIRA','DVD_PLAYER','ENCOSTO_CABECA_TRASEIRO','FAROL_DE_XENONIO','FREIO_ABS',
                 'GPS','LIMPADOR_TRASEIRO','PROTETOR_CACAMBA','RADIO','RADIO_TOCAFICA','RETROVISOR_FOTOCROMICO','RETROVISOR_ELETRICO','RODAS_LIGA_LEVE','SENSOR_DE_CHUVA',
-                'SENSOR_DE_ESTACIONAMENTO','TETO_SOLAR','TRACAO_QUATRO_POR_QUATRO','TRAVAS_ELETRICAS','VIDROS_ELETRICOS','VOLANTE_REG_ALTURA'])
+                'SENSOR_DE_ESTACIONAMENTO','TETO_SOLAR','TRACAO_QUATRO_POR_QUATRO','TRAVAS_ELETRICAS','VIDROS_ELETRICOS','VOLANTE_REG_ALTURA','COMBUSTIVEL'])
 
         # requisitions counter, for the ETL we want to make 300
         timeout = time.time() + 60*30   # 5 minutes from now
@@ -421,6 +426,7 @@ class WebmotorsETL:
             TRAVAS_ELETRICAS,
             VIDROS_ELETRICOS,
             VOLANTE_REG_ALTURA,
+            COMBUSTIVEL,
             DATA_CARGA
         )
         VALUES (
@@ -491,6 +497,7 @@ class WebmotorsETL:
             %(TRAVAS_ELETRICAS)s,
             %(VIDROS_ELETRICOS)s,
             %(VOLANTE_REG_ALTURA)s,
+            %(COMBUSTIVEL)s,
             %(DATA_CARGA)s
         );
         '''
