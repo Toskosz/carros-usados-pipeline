@@ -1,13 +1,8 @@
-from pandas.io.formats.format import SeriesFormatter
 import requests
 import pandas as pd
 from datetime import datetime
 import time
 from time import sleep
-from util.creds import get_warehouse_creds
-import numpy as np
-import psycopg2.extras as p
-from util.warehouse import WarehouseConnection
 
 # Exemplo de resposta
 
@@ -100,11 +95,10 @@ class WebmotorsExtract:
         }
 
     def run(self) -> None:
-        data = self.get_recent_cars()
+        data = self.__get_recent_cars()
         now = datetime.now()
         str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
-        data.to_csv('../raw/webmotors/'+str_hora+'.csv',index=False)
-        
+        data.to_csv('../raw/webmotors/'+str_hora+'.csv',index=False) 
 
 #   Extraction part
 
@@ -197,7 +191,7 @@ class WebmotorsExtract:
 
         return tmp_row
 
-    def get_recent_cars(self) -> pd.DataFrame:
+    def __get_recent_cars(self) -> pd.DataFrame:
         # DataFrame for batching
         carros_webmotors = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
         'ATRIBUTOS','BLINDADO','COR','TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO',
