@@ -101,7 +101,9 @@ class WebmotorsExtract:
 
     def run(self) -> None:
         data = self.get_recent_cars()
-        # todo: data to csv(or other format) and store it into some directory(in the future in the S3)
+        now = datetime.now()
+        str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
+        data.to_csv('../raw/webmotors/'+str_hora+'.csv',index=False)
         
 
 #   Extraction part
