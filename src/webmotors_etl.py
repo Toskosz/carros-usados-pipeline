@@ -98,7 +98,7 @@ class WebmotorsExtract:
         data = self.__get_recent_cars()
         now = datetime.now()
         str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
-        data.to_csv('../raw/webmotors/'+str_hora+'.csv',index=False) 
+        data.to_csv('raw/webmotors/'+str_hora+'.csv',index=False) 
 
 #   Extraction part
 
