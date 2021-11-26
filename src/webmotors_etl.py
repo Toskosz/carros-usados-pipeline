@@ -195,7 +195,7 @@ class WebmotorsExtract:
         # DataFrame for batching
         carros_webmotors = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
         'ATRIBUTOS','BLINDADO','COR','TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO',
-        'PORCENTAGEM_FIPE','COMBUSTIVEL'])
+        'PORCENTAGEM_FIPE','OPTIONALS','COMBUSTIVEL'])
 
         # requisitions counter, for the ETL we want to make 300
         timeout = time.time() + 60*30   # 30 minutes from now

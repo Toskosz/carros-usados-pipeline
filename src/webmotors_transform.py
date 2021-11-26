@@ -1,7 +1,7 @@
 from os import listdir
 from os.path import isfile, join
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import lit
+from pyspark.sql.functions import lit, when
 import datetime
 import ast
 
@@ -60,34 +60,44 @@ class WebmotorsTransform:
     def run(self) -> None:
         last_file = self.__get_last_file()
         data = self.spark.read.csv(self.files_path + last_file + ".csv", header=True)
-        # todo: add dummy columns to data
-        # todo: fill dummy columns (vehicles_att and optionals)
-        rdd_with_va = data.rdd.map(lambda x: self.__get_vehicle_attributes(x))
-        df_with_va = rdd_with_va.toDF(['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
-            'ACEITA_TROCA','ALIENADO','GARANTIA_DE_FABRICA','IPVA_PAGO','LICENCIADO','REVISOES_PELA_AGENDA_CARRO','REVISOES_PELA_CONCESSIONARIA','UNICO_DONO','BLINDADO','COR','TIPO_VENDEDOR',
-            'CIDADE_VENDEDOR','ESTADO_VENDEDOR','UF_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO','PORCENTAGEM_FIPE','AIRBAG',
-            'ALARME','AR_CONDICIONADO','AR_QUENTE','BANCO_REGULA_ALTURA','BANCO_COM_AQUECIMENTO','BANCO_DE_COURO','CAPOTA_MARITIMA','MP3_CD_PLAYER','CD_PLAYER','COMPUTAR_DE_BORDO',
-            'CONTROLE_AUTOMATICO_VEL','CONTROLE_TRACAO','DESEMBACADOR_TRASEIRO','DIR_HIDRAULICA','DISQUETEIRA','DVD_PLAYER','ENCOSTO_CABECA_TRASEIRO','FAROL_DE_XENONIO','FREIO_ABS',
-            'GPS','LIMPADOR_TRASEIRO','PROTETOR_CACAMBA','RADIO','RADIO_TOCAFICA','RETROVISOR_FOTOCROMICO','RETROVISOR_ELETRICO','RODAS_LIGA_LEVE','SENSOR_DE_CHUVA',
-            'SENSOR_DE_ESTACIONAMENTO','TETO_SOLAR','TRACAO_QUATRO_POR_QUATRO','TRAVAS_ELETRICAS','VIDROS_ELETRICOS','VOLANTE_REG_ALTURA','COMBUSTIVEL'])
+        
+        # todo: maybe the below process is shitty. investigate later.
+        # adds and fills dummy columns to data
+        for original_name, column_name in self.dummy_columns:
+            data = data.withColumn(column_name, self.__has_att(original_name, data.ATRIBUTOS, data.OPTIONALS))
 
+        # drop atributos and optionals column
+        data_with_dummy_columns = data.drop("ATRIBUTOS","OPTIONALS")
+
+        # todo: separation of UF and ESTADO from ESTADO column
+        # todo: compute types
+        # todo: clean strings
+        # todo: compute blindado
+        # todo: compute bool
+        
+    # get most recent csv data file
     def __get_last_file(self):
         # get all csv files
         files = {f.removesuffix(".csv") : datetime.strptime(f.removesuffix(".csv"), '%Y%m%d%H') for f in listdir(self.files_path) if isfile(join(self.files_path, f))}
         # latest file
         return max(files, key=files.get)
 
-    def __get_vehicle_attributes(self, row):
-        row_val = row.ATRIBUTOS.replace('[', '')
-        row_val = row_val.replace(']', '')
-        row_dict = ast.literal_eval(row_val)
+    # verifies if dummy column existis in the row atributos and optionals
+    def __has_att(original_name,atts_atributos, atts_optionals):
+        atts_atributos_val = atts_atributos.replace('[', '')
+        atts_atributos_val = atts_atributos_val.replace(']', '')
 
-        for att_dict in row_dict:
+        atts_optionals_val = atts_optionals.replace('[', '')
+        atts_optionals_val = atts_optionals_val.replace(']', '')
+
+        atts_val = atts_atributos_val + ',' + atts_optionals
+
+        # string representation of dicts to actual list of dicts
+        atts_dict = ast.literal_eval(atts_val)
+
+        for att_dict in atts_dict:
             for _, attribute_desc in att_dict.items():
-                column_name = self.dummy_columns[attribute_desc]
-                # 1 = vehicle has attribute
-                row.withColumn(column_name,lit('1')).show()
-        
-        # todo: verify if "return row" is possible
-        # todo: verify if this function follow the functional programming paradigm 
-        return row
+                if original_name == attribute_desc:
+                    return 1
+    
+        return 0
