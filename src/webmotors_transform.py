@@ -108,8 +108,17 @@ class WebmotorsTransform:
             for f in lst_f:
                 data_to_type_compute = data_to_type_compute.withColumn(coluna, f(data[coluna]))
 
-        data_to_load = data_to_type_compute.na.fill("INDISPONIVEL")
-        self.__load_data(data_to_load)
+        # fills na values and creates DATA_CARGA column with datetime of load
+        data_filled_na = data_to_type_compute.na.fill("INDISPONIVEL")
+        data_to_load = data_filled_na.withColumn("DATA_CARGA", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+
+        # Uses pandas dataframe to make the load because i cant do it with
+        # pyspark at the moment
+        # todo: load with pyspark dataframe
+        pandas_dataframe = data_to_load.toPandas()
+
+        self.__load_data(pandas_dataframe.values)
+        
         self.spark.stop()
         
 
