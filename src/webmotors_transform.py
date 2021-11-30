@@ -4,6 +4,10 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit, when
 import datetime
 import ast
+import numpy as np
+from util.creds import get_warehouse_creds
+from util.warehouse import WarehouseConnection
+import psycopg2.extras as p
 
 class WebmotorsTransform:
 
@@ -57,11 +61,37 @@ class WebmotorsTransform:
             'Volante com regulagem de altura':'VOLANTE_REG_ALTURA'
         }
 
+        self.columns_func_assigns = {
+            "TITULO": [self.__clean_str_column],
+            "FABRICANTE": [self.__clean_str_column],
+            "MODELO": [self.__clean_str_column],
+            "VERSAO": [self.__clean_str_column],
+            "ANO_FABRICACAO": [self.__to_str],
+            "ANO_MODELO": [self.__to_str],
+            "KILOMETRAGEM":[self.__to_float],
+            "TRANSMISSAO": [self.__clean_str_column],
+            "QNTD_PORTAS": [self.__to_str],
+            "CORPO_VEICULO": [self.__clean_str_column],
+            "BLINDADO": [self.__compute_BLINDADO],
+            "COR": [self.__clean_str_column],
+            "TIPO_VENDEDOR": [self.__clean_str_column],
+            "CIDADE_VENDEDOR": [self.__clean_str_column],
+            "ESTADO_VENDEDOR": [self.__clean_str_column],
+            "UF_VENDEDOR": [self.__clean_str_column],
+            "TIPO_ANUNCIO": [self.__clean_str_column],
+            "ENTREGA_CARRO": [self.__compute_bool],
+            "TROCA_COM_TROCO": [self.__compute_bool],
+            "PRECO": [self.__to_float],
+            "PORCENTAGEM_FIPE": [self.__to_float],
+            "COMBUSTIVEL": [self.__clean_str_column],
+            "COMENTARIO_DONO": [self.__clean_str_column]
+        }
+
     def run(self) -> None:
         last_file = self.__get_last_file()
         data = self.spark.read.csv(self.files_path + last_file + ".csv", header=True)
         
-        # todo: maybe the below process is shitty. investigate later.
+        # todo: maybe the below process is slow. investigate later.
         # adds and fills dummy columns to data
         for original_name, column_name in self.dummy_columns:
             data = data.withColumn(column_name, self.__has_att(original_name, data.ATRIBUTOS, data.OPTIONALS))
@@ -69,12 +99,43 @@ class WebmotorsTransform:
         # drop atributos and optionals column
         data_with_dummy_columns = data.drop("ATRIBUTOS","OPTIONALS")
 
-        # todo: separation of UF and ESTADO from ESTADO column
-        # todo: compute types
-        # todo: clean strings
-        # todo: compute blindado
-        # todo: compute bool
+        # separation of UF and ESTADO from ESTADO column
+        data_with_uf = data_with_dummy_columns.withColumn("UF_VENDEDOR", self.__compute_UF(data_with_dummy_columns.ESTADO_VENDEDOR))
+        data_to_type_compute = data_with_uf.withColumn("ESTADO_VENDEDOR", self.__compute_ESTADO(data_with_uf.ESTADO_VENDEDOR))
         
+        # types, string cleaning, computes special columns
+        for coluna, lst_f in self.columns_func_assigns.items():
+            for f in lst_f:
+                data_to_type_compute = data_to_type_compute.withColumn(coluna, f(data[coluna]))
+
+        data_to_load = data_to_type_compute.na.fill("INDISPONIVEL")
+        self.__load_data(data_to_load)
+        
+
+
+    # pass column as string
+    def __to_str(column):
+        return column.astype(str)
+
+    # compute string to a numeric bool value
+    def __compute_bool(column):
+        return np.where(column == 'true', 1, 0)
+
+    # pass column as float
+    def __to_float(column):
+        return column.astype(float)
+
+    # uppercase column
+    def __to_upper(column):
+        return column.str.upper()
+
+    # removes special characters and uppercase it
+    def __clean_str_column(column):
+        # removes accents
+        normalized_column = column.str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode('utf-8')
+        # return uppercase
+        return normalized_column.str.upper()
+
     # get most recent csv data file
     def __get_last_file(self):
         # get all csv files
@@ -82,7 +143,21 @@ class WebmotorsTransform:
         # latest file
         return max(files, key=files.get)
 
-    # verifies if dummy column existis in the row atributos and optionals
+    # computes column BLINDADO
+    def __compute_BLINDADO(blindado_column):
+        return np.where(blindado_column == 'N', 0, 1)
+
+    # separates the ESTADO_VENDEDOR into two colums, ESTADO_VENDEDOR and UF_VENDEDOR
+    def __compute_UF(estados):
+        uf = estados[estados.find("(")+1:estados.find(")")]
+        return uf
+
+    # computes new estado values without uf
+    def __compute_ESTADO(estados):
+        estado = estados[:estados.find("(")]
+        return estado
+
+    # verifies if dummy column exists in the row atributos and optionals
     def __has_att(original_name,atts_atributos, atts_optionals):
         atts_atributos_val = atts_atributos.replace('[', '')
         atts_atributos_val = atts_atributos_val.replace(']', '')
@@ -101,3 +176,156 @@ class WebmotorsTransform:
                     return 1
     
         return 0
+
+
+    def __load_data(self,data):
+        with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
+            p.execute_batch(curr, self.__get_exchange_insert_query(), data)
+
+    def __get_exchange_insert_query() -> str:
+        return '''
+        INSERT INTO STG.WEBMOTORS (
+            AD_ID,
+            TITULO,
+            FABRICANTE,
+            MODELO,
+            VERSAO,
+            ANO_FABRICACAO,
+            ANO_MODELO,
+            KILOMETRAGEM,
+            TRANSMISSAO,
+            QNTD_PORTAS,
+            CORPO_VEICULO,
+            ACEITA_TROCA,
+            ALIENADO,
+            GARANTIA_DE_FABRICA,
+            IPVA_PAGO,
+            LICENCIADO,
+            REVISOES_PELA_AGENDA_CARRO,
+            REVISOES_PELA_CONCESSIONARIA,
+            UNICO_DONO,
+            BLINDADO,
+            COR,
+            TIPO_VENDEDOR,
+            CIDADE_VENDEDOR,
+            ESTADO_VENDEDOR,
+            UF_VENDEDOR,
+            AD_TYPE,
+            SCORE_VENDEDOR,
+            ENTREGA_CARRO,
+            TROCA_COM_TROCO,
+            PRECO,
+            PRECO_DESEJADO,
+            COMENTARIO_DONO,
+            PORCENTAGEM_FIPE,
+            AIRBAG,
+            ALARME,
+            AR_CONDICIONADO,
+            AR_QUENTE,
+            BANCO_REGULA_ALTURA,
+            BANCO_COM_AQUECIMENTO,
+            BANCO_DE_COURO,
+            CAPOTA_MARITIMA,
+            MP3_CD_PLAYER,
+            CD_PLAYER,
+            COMPUTAR_DE_BORDO,
+            CONTROLE_AUTOMATICO_VEL,
+            CONTROLE_TRACAO,
+            DESEMBACADOR_TRASEIRO,
+            DIR_HIDRAULICA,
+            DISQUETEIRA,
+            DVD_PLAYER,
+            ENCOSTO_CABECA_TRASEIRO,
+            FAROL_DE_XENONIO,
+            FREIO_ABS,
+            GPS,
+            LIMPADOR_TRASEIRO,
+            PROTETOR_CACAMBA,
+            RADIO,
+            RADIO_TOCAFICA,
+            RETROVISOR_FOTOCROMICO,
+            RETROVISOR_ELETRICO,
+            RODAS_LIGA_LEVE,
+            SENSOR_DE_CHUVA,
+            SENSOR_DE_ESTACIONAMENTO,
+            TETO_SOLAR,
+            TRACAO_QUATRO_POR_QUATRO,
+            TRAVAS_ELETRICAS,
+            VIDROS_ELETRICOS,
+            VOLANTE_REG_ALTURA,
+            COMBUSTIVEL,
+            DATA_CARGA
+        )
+        VALUES (
+            %(AD_ID)s,
+            %(TITULO)s,
+            %(FABRICANTE)s,
+            %(MODELO)s,
+            %(VERSAO)s,
+            %(ANO_FABRICACAO)s,
+            %(ANO_MODELO)s,
+            %(KILOMETRAGEM)s,
+            %(TRANSMISSAO)s,
+            %(QNTD_PORTAS)s,
+            %(CORPO_VEICULO)s,
+            %(ACEITA_TROCA)s,
+            %(ALIENADO)s,
+            %(GARANTIA_DE_FABRICA)s,
+            %(IPVA_PAGO)s,
+            %(LICENCIADO)s,
+            %(REVISOES_PELA_AGENDA_CARRO)s,
+            %(REVISOES_PELA_CONCESSIONARIA)s,
+            %(UNICO_DONO)s,
+            %(BLINDADO)s,
+            %(COR)s,
+            %(TIPO_VENDEDOR)s,
+            %(CIDADE_VENDEDOR)s,
+            %(ESTADO_VENDEDOR)s,
+            %(UF_VENDEDOR)s,
+            %(AD_TYPE)s,
+            %(SCORE_VENDEDOR)s,
+            %(ENTREGA_CARRO)s,
+            %(TROCA_COM_TROCO)s,
+            %(PRECO)s,
+            %(PRECO_DESEJADO)s,
+            %(COMENTARIO_DONO)s,
+            %(PORCENTAGEM_FIPE)s,
+            %(AIRBAG)s,
+            %(ALARME)s,
+            %(AR_CONDICIONADO)s,
+            %(AR_QUENTE)s,
+            %(BANCO_REGULA_ALTURA)s,
+            %(BANCO_COM_AQUECIMENTO)s,
+            %(BANCO_DE_COURO)s,
+            %(CAPOTA_MARITIMA)s,
+            %(MP3_CD_PLAYER)s,
+            %(CD_PLAYER)s,
+            %(COMPUTAR_DE_BORDO)s,
+            %(CONTROLE_AUTOMATICO_VEL)s,
+            %(CONTROLE_TRACAO)s,
+            %(DESEMBACADOR_TRASEIRO)s,
+            %(DIR_HIDRAULICA)s,
+            %(DISQUETEIRA)s,
+            %(DVD_PLAYER)s,
+            %(ENCOSTO_CABECA_TRASEIRO)s,
+            %(FAROL_DE_XENONIO)s,
+            %(FREIO_ABS)s,
+            %(GPS)s,
+            %(LIMPADOR_TRASEIRO)s,
+            %(PROTETOR_CACAMBA)s,
+            %(RADIO)s,
+            %(RADIO_TOCAFICA)s,
+            %(RETROVISOR_FOTOCROMICO)s,
+            %(RETROVISOR_ELETRICO)s,
+            %(RODAS_LIGA_LEVE)s,
+            %(SENSOR_DE_CHUVA)s,
+            %(SENSOR_DE_ESTACIONAMENTO)s,
+            %(TETO_SOLAR)s,
+            %(TRACAO_QUATRO_POR_QUATRO)s,
+            %(TRAVAS_ELETRICAS)s,
+            %(VIDROS_ELETRICOS)s,
+            %(VOLANTE_REG_ALTURA)s,
+            %(COMBUSTIVEL)s,
+            %(DATA_CARGA)s
+        );
+        '''
