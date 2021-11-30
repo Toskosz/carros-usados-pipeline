@@ -110,6 +110,7 @@ class WebmotorsTransform:
 
         data_to_load = data_to_type_compute.na.fill("INDISPONIVEL")
         self.__load_data(data_to_load)
+        self.spark.stop()
         
 
 
