@@ -66,11 +66,11 @@ class WebmotorsTransform:
             "FABRICANTE": [self.__clean_str_column],
             "MODELO": [self.__clean_str_column],
             "VERSAO": [self.__clean_str_column],
-            "ANO_FABRICACAO": [self.__to_str],
-            "ANO_MODELO": [self.__to_str],
+            # "ANO_FABRICACAO": [self.__to_str],    # todo: 20 -> 2020 verify this and
+            "ANO_MODELO": [self.__to_str],          # todo: 20 -> 2020 correct it
             "KILOMETRAGEM":[self.__to_float],
             "TRANSMISSAO": [self.__clean_str_column],
-            "QNTD_PORTAS": [self.__to_str],
+            # "QNTD_PORTAS": [self.__to_str],
             "CORPO_VEICULO": [self.__clean_str_column],
             "BLINDADO": [self.__compute_BLINDADO],
             "COR": [self.__clean_str_column],
@@ -186,7 +186,6 @@ class WebmotorsTransform:
                     return 1
     
         return 0
-
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
