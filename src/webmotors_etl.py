@@ -129,7 +129,7 @@ class WebmotorsExtract:
 
         contador = 1
 
-        while len(carros_webmotors_no_dups.index) <= self.batch_size:
+        while len(carros_webmotors.index) <= self.batch_size:
             url = 'https://www.webmotors.com.br/api/search/car?url=https://www.webmotors.com.br/carros/estoque?o=8&actualPage='+str(contador)+'&displayPerPage=24&order=8&showMenu=true&showCount=true&showBreadCrumb=true&testAB=false&returnUrl=false'
             
             # Makes request and handles possibility of a 500 response
@@ -147,9 +147,9 @@ class WebmotorsExtract:
             # next page
             contador += 1
 
-            carros_webmotors_no_dups = carros_webmotors.drop_duplicates()
+            carros_webmotors = carros_webmotors.drop_duplicates()
 
             # API restrictions(?)
             sleep(5)
         
-        return carros_webmotors_no_dups
+        return carros_webmotors
