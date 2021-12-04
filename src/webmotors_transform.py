@@ -120,30 +120,22 @@ class WebmotorsTransform:
         self.__load_data(pandas_dataframe.values)
         
         self.spark.stop()
-        
 
-
-    # pass column as string
     def __to_str(column):
         return column.astype(str)
 
-    # compute string to a numeric bool value
     def __compute_bool(column):
         return np.where(column == 'true', 1, 0)
 
-    # pass column as float
     def __to_float(column):
         return column.astype(float)
 
-    # uppercase column
     def __to_upper(column):
         return column.str.upper()
 
     # removes special characters and uppercase it
     def __clean_str_column(column):
-        # removes accents
         normalized_column = column.str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode('utf-8')
-        # return uppercase
         return normalized_column.str.upper()
 
     # get most recent csv data file
