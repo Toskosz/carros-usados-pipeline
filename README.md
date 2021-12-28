@@ -5,5 +5,4 @@
 
 - https://www.webmotors.com.br/
 - https://www.meucarronovo.com.br
-- https://www.autoline.com.br/
-- https://www.icarros.com.br
+- https://www.autoline.com.br/ (maybe later)
