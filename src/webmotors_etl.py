@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 import time
 from time import sleep
+import unidecode
 
 class WebmotorsExtract:
 
@@ -20,13 +21,13 @@ class WebmotorsExtract:
             'Upgrade-Insecure-Requests':	'1',
             'User-Agent':	'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0'
         }
-        self.batch_size = 15000
 
-    def run(self) -> None:
-        data = self.__get_recent_cars()
+    def run(self, max_batch_size) -> None:
+        data = self.__get_recent_cars(max_batch_size)
         now = datetime.now()
         str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
-        data.to_csv('raw/webmotors/'+str_hora+'.csv',index=False) 
+        data.to_csv('raw/webmotors/'+str_hora+'.csv',index=False)
+        return data
 
 #   Extraction part
 
@@ -78,22 +79,33 @@ class WebmotorsExtract:
         tmp_row['PRECO_DESEJADO'] = precos['SearchPrice']
         return tmp_row
 
-    def __get_optionals(self,id):
+    def __get_optionals(self, op_url):
         tmp_row = {}
-        op_url = "https://www.webmotors.com.br/api/detail/car/" + id
+
         op_response = requests.get(url = op_url, headers=self.req_headers)
+        while op_response.status_code >= 500:
+            op_response = requests.get(url = op_url, headers=self.req_headers)
+
+        sleep(5)
         op_data = op_response.json()
-        tmp_specs = op_data['Specification']
 
-        tmp_row['COMBUSTIVEL'] = tmp_specs['Fuel']
+        try:
+            tmp_specs = op_data['Specification']
+        except Exception as E:
+            print(op_url)
+            raise(E)
 
-        tmp_row['OPTIONALS'] = tmp_specs['Optionals']
+        if 'Fuel' in tmp_specs:
+            tmp_row['COMBUSTIVEL'] = tmp_specs['Fuel']
+
+        if 'Optionals' in tmp_specs:
+            tmp_row['OPTIONALS'] = tmp_specs['Optionals']
 
         return tmp_row
 
     # Moves the data to a dict to be appended to the batch dataframe
     # with the right column names
-    def carrega_carro(self, carro) -> dict:
+    def __carrega_carro(self, carro) -> dict:
         tmp_row = {}
         tmp_row['AD_ID'] = carro['UniqueId']
 
@@ -116,12 +128,26 @@ class WebmotorsExtract:
             tmp_row['PORCENTAGEM_FIPE'] = carro['FipePercent']
         
         # OPTIONALS
-        optionals = self.__get_optionals(tmp_row['AD_ID'])
+        optionals_url = self.__make_opt_url(tmp_row)
+        optionals = self.__get_optionals(optionals_url)
         tmp_row.update(optionals)
 
         return tmp_row
 
-    def __get_recent_cars(self, limite) -> pd.DataFrame:
+    def __make_opt_url(self,tmp_row):
+        tmp_versao = unidecode.unidecode(tmp_row['VERSAO'])
+        tmp_fabricante = unidecode.unidecode(tmp_row['FABRICANTE'])
+        tmp_modelo = unidecode.unidecode(tmp_row['MODELO'])
+        # example:
+        # https://www.webmotors.com.br/api/detail/car/chery/arrizo-6-pro/15-vvt-turbo-iflex-cvt/4-portas/2021-2022/39546505
+        op_url = "https://www.webmotors.com.br/api/detail/car/" + tmp_fabricante.lower().replace(' ','-') + "/" + tmp_modelo.replace(' ', '-').lower() + "/" + \
+        tmp_versao.replace('.','').replace(' ','-').lower() + "/" + tmp_row['QNTD_PORTAS'] + "-portas/" + tmp_row['ANO_FABRICACAO'] + "-" + str(int(tmp_row['ANO_MODELO'])) + "/" + \
+        str(tmp_row['AD_ID'])
+        
+        return op_url
+        
+
+    def __get_recent_cars(self, max_batch_size) -> pd.DataFrame:
         # DataFrame for batching
         carros_webmotors = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
         'ATRIBUTOS','BLINDADO','COR','TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO',
@@ -129,7 +155,7 @@ class WebmotorsExtract:
 
         contador = 1
 
-        while len(carros_webmotors.index) <= self.batch_size:
+        while len(carros_webmotors.index) <= max_batch_size:
             url = 'https://www.webmotors.com.br/api/search/car?url=https://www.webmotors.com.br/carros/estoque?o=8&actualPage='+str(contador)+'&displayPerPage=24&order=8&showMenu=true&showCount=true&showBreadCrumb=true&testAB=false&returnUrl=false'
             
             # Makes request and handles possibility of a 500 response
@@ -137,19 +163,16 @@ class WebmotorsExtract:
             while response.status_code >= 500:
                 response = requests.get(url = url, headers=self.req_headers)
 
+            # API restrictions(?)
+            sleep(5)
 
             data = response.json()
             carros = data['SearchResults']
             for carro in carros:
-                carro_row = self.carrega_carro(carro)
+                carro_row = self.__carrega_carro(carro)
                 carros_webmotors = carros_webmotors.append(carro_row, ignore_index=True)
 
             # next page
             contador += 1
 
-            carros_webmotors = carros_webmotors.drop_duplicates()
-
-            # API restrictions(?)
-            sleep(5)
-        
-        return carros_webmotors
+        return carros_webmotors.head(max_batch_size)

@@ -92,7 +92,7 @@ class WebmotorsTransform:
         data = self.spark.read.csv(self.files_path + last_file + ".csv", header=True)
         
         # todo: maybe the below process is slow. investigate later.
-        # adds and fills dummy columns to data
+        # updates dummy columns to data
         for original_name, column_name in self.dummy_columns:
             data = data.withColumn(column_name, self.__has_att(original_name, data.ATRIBUTOS, data.OPTIONALS))
 
