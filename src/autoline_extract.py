@@ -37,11 +37,9 @@ class AutolineExtract:
         tmp_row['AD_ID'] = data['AdId']
         tmp_row['INFORMACOES_ADICIONAIS'] = data['AdditionalInformation']
         tmp_row['CORPO_VEICULO'] = data['BodyTypeName']
-        tmp_row['FREIO'] = data['BrakeSystemName']
         tmp_row['ANO_FABRICACAO'] = data['BuiltYear']
         tmp_row['CIDADE'] = data['CityName']
         tmp_row['COR'] = data['ColorName']
-        tmp_row['RESFRIACAO'] = data['CoolingTypeName']
         tmp_row['DATA_ATUALIZACAO_AUTOLINE'] = data['DataAtualizacao']
         tmp_row['DATA_CRIACAO_AD'] = data['DataCriacao']
         tmp_row['QNTD_PORTAS'] = data['DoorNumberName']
@@ -57,7 +55,7 @@ class AutolineExtract:
         tmp_row['GARANTIA_DE_FABRICA'] = data['IsManufacturerWarrantyActive']
         tmp_row['NOVO'] = data['IsNew']
         tmp_row['DONO_UNICO'] = data['IsOneOwnerUsed']
-        tmp_row['TOTALMENTE_PAGO'] = data['IsPaid']
+        tmp_row['QUITADO'] = data['IsPaid']
         tmp_row['REGISTRAMENTO_PAGO'] = data['IsRegistrationPaid']
         tmp_row['VENDEDOR_PJ'] = data['IsSellerPj']
         tmp_row['NAO_ACEITA_TROCA'] = data['IsSwapNotAccepted']
@@ -73,7 +71,6 @@ class AutolineExtract:
         tmp_row['TELEFONE'] = data['PhoneNumber']
         tmp_row['PRECO'] = data['Price']
         tmp_row['PRECO_FIPE'] = data['PriceFipe']
-        tmp_row['QUANTIDADE'] = data['Qtde']
         tmp_row['DATA_DE_REGISTRO'] = data['RegisterDate']
         tmp_row['PLACA'] = data['RegistrationPlate']
         tmp_row['COR_SECUNDARIA'] = data['SecondaryColorName']
@@ -81,16 +78,14 @@ class AutolineExtract:
         tmp_row['ENDERECO'] = data['SellerAddress1']
         tmp_row['COMPLEMENTO_ENDERECO'] = data['SellerAddress2']
         tmp_row['DOCUMENTO_VENDEDOR'] = data['SellerDocumentNumber']
-        tmp_row['LOCAL_VENDEDOR'] = data['SellerLocation']
         tmp_row['NOME_VENDEDOR'] = data['SellerName']
-        tmp_row['ABREVIACAO_ESTADO'] = data['StateAbbreviation']
+        tmp_row['UF'] = data['StateAbbreviation']
         tmp_row['ESTADO'] = data['StateName']
         tmp_row['TRANSMISSAO'] = data['TransmissionName']
         tmp_row['TIPO_VENDEDOR'] = data['TypeSellerName']
         tmp_row['DATA_ATT_AD'] = data['UpdatedDate']
         tmp_row['VERSAO'] = data['VersionName']
         tmp_row['WHATSAPP'] = data['WhatsAppNumber']
-        tmp_row['URL_ADD'] = data['url']
 
         return tmp_row
 
@@ -113,11 +108,11 @@ class AutolineExtract:
 
     def __get_recent_cars(self, max_batch_size) -> pd.DataFrame:
 
-        carros = pd.DataFrame(columns=['AD_ID','INFORMACOES_ADICIONAIS','CORPO_VEICULO','FREIO','ANO_FABRICACAO','CIDADE','COR','RESFRIACAO','DATA_ATUALIZACAO_AUTOLINE','DATA_CRIACAO_AD',
+        carros = pd.DataFrame(columns=['AD_ID','INFORMACOES_ADICIONAIS','CORPO_VEICULO','ANO_FABRICACAO','CIDADE','COR','DATA_ATUALIZACAO_AUTOLINE','DATA_CRIACAO_AD',
             'QNTD_PORTAS','EMAIL','MOTOR','RECURSOS','COMBUSTIVEL','BLINDADO','COLECIONADOR','ADAPTADO_DEFICIENCIA','FINANCIAVEL','FINANCIADO','GARANTIA_DE_FABRICA','NOVO','DONO_UNICO',
-            'TOTALMENTE_PAGO','REGISTRAMENTO_PAGO','VENDEDOR_PJ','NAO_ACEITA_TROCA','IMPOSTOS_PAGOS','ZEROKM','KILOMETRAGEM','LINK_AD','FABRICANTE','CELULAR','MODELO','ANO_MODELO','BAIRRO',
-            'TELEFONE','PRECO','PRECO_FIPE','QUANTIDADE','DATA_DE_REGISTRO','PLACA','COR_SECUNDARIA','TIPO_VEICULO','ENDERECO','COMPLEMENTO_ENDERECO','DOCUMENTO_VENDEDOR','LOCAL_VENDEDOR',
-            'NOME_VENDEDOR','ABREVIACAO_ESTADO','ESTADO','TRANSMISSAO','TIPO_VENDEDOR','DATA_ATT_AD','VERSAO','WHATSAPP','URL_ADD'])
+            'QUITADO','REGISTRAMENTO_PAGO','VENDEDOR_PJ','NAO_ACEITA_TROCA','IMPOSTOS_PAGOS','ZEROKM','KILOMETRAGEM','LINK_AD','FABRICANTE','CELULAR','MODELO','ANO_MODELO','BAIRRO',
+            'TELEFONE','PRECO','PRECO_FIPE','DATA_DE_REGISTRO','PLACA','COR_SECUNDARIA','TIPO_VEICULO','ENDERECO','COMPLEMENTO_ENDERECO','DOCUMENTO_VENDEDOR',
+            'NOME_VENDEDOR','UF','ESTADO','TRANSMISSAO','TIPO_VENDEDOR','DATA_ATT_AD','VERSAO','WHATSAPP'])
 
         qntd_etl = 5000
 
@@ -135,12 +130,10 @@ class AutolineExtract:
 
 '''
 AdId: 15916733
-ActualPrice: 0
 AdditionalInformation: "CARRO MUITO NOVO NUNCA BATEU \n\nREVISADO COM GARANTIA DA LOJA \n\nDOC SEM NENHUM DÉBITO \n\nCOMPLETO G6  4 PORTAS \n\nAR CONDICIONADO \n\nDIREÇÃO HIDRÁULICA \n\nVIDROS E TRAVAS ELÉTRICAS \n\nACEITAMOS SEU USADO NA TROCA \n\nOPORTUNIDADE !!! MELHORES TAXAS DE FINANCIAMENTO\n\nPARCELAMOS EM ATÉ 18 X CARTÃO DE CRÉDITO TAXAS BAIXAS \n\nEM EXPOSIÇÃO AV ITAQUERA 1352 PRÓXIMO AV ARICANDUVA \n\nDE SEGUNDA A SÁBADO DAS 09:00HS ÁS 18:00HS \n\nRZERO MULTIMARCAS. Outros opcionais: Air bag do motorista, Porta-copos, Farol de neblina, Pára-choques na cor do veículo."
 BodyTypeName: "Hatch"
 BrakeSystemName: ""
 BuiltYear: 2013
-CarburetorName: ""
 CityName: "São Paulo"
 ColorName: "Preto"
 CoolingTypeName: ""
@@ -162,7 +155,6 @@ Features:
     9: "Desembaçador Traseiro"
     10: "Encosto de Cabeça Traseiro"
 FuelTypeName: "Gasolina e Álcool"
-GearNumberName: ""
 IsArmored: false
 IsCollectorVehicle: false
 IsDisabilityAdapted: false
@@ -173,11 +165,9 @@ IsNew: false
 IsOneOwnerUsed: false
 IsPaid: false
 IsRegistrationPaid: true
-IsSellerBusinessUser: true
 IsSellerPj: null
 IsSwapNotAccepted: false
 IsTaxPaid: true
-IsUserDisabledRequested: false
 IsZeroKm: "Usado"
 Km: 58000
 LinkAnuncio: null
