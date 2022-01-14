@@ -87,8 +87,10 @@ class WebmotorsTransform:
             "COMENTARIO_DONO": [self.__clean_str_column]
         }
 
-    def run(self) -> None:
-        last_file = self.__get_last_file()
+    def run(self, last_file=None) -> None:
+        if not last_file:
+            last_file = self.__get_last_file()
+        
         data = self.spark.read.csv(self.files_path + last_file + ".csv", header=True)
         
         # todo: maybe the below process is slow. investigate later.
