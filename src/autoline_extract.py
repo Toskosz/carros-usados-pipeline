@@ -4,6 +4,7 @@ from datetime import datetime
 import time
 from time import sleep
 from bs4 import BeautifulSoup
+import math
 
 class AutolineExtract:
 
@@ -28,7 +29,7 @@ class AutolineExtract:
         data = self.__get_recent_cars(max_batch_size)
         now = datetime.now()
         str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
-        data.to_csv('raw/webmotors/'+str_hora+'.csv',index=False)
+        data.to_csv('raw/autoline/'+str_hora+'.csv',index=False)
         return data
 
     def __extract_data(data):
@@ -92,7 +93,7 @@ class AutolineExtract:
     def __get_carros_ids(qntd_carros) -> list:
 
         ids = []
-        paginas = int(qntd_carros/24)
+        paginas = math.ceil(qntd_carros/24)
 
         for i in range(1, paginas):
             url = "https://busca.autoline.com.br/comprar/carros/novos-seminovos-usados/todos-os-estados/todas-as-cidades/todas-as-marcas/todos-os-modelos/todas-as-versoes/todos-os-anos/todas-as-cores/todos-os-precos/?sort=20&page=" + str(i)
@@ -114,8 +115,6 @@ class AutolineExtract:
             'TELEFONE','PRECO','PRECO_FIPE','DATA_DE_REGISTRO','PLACA','COR_SECUNDARIA','TIPO_VEICULO','ENDERECO','COMPLEMENTO_ENDERECO','DOCUMENTO_VENDEDOR',
             'NOME_VENDEDOR','UF','ESTADO','TRANSMISSAO','TIPO_VENDEDOR','DATA_ATT_AD','VERSAO','WHATSAPP'])
 
-        qntd_etl = 5000
-
         carros_ids = self.__get_carros_ids(max_batch_size)
         
         for id in carros_ids:
@@ -126,7 +125,7 @@ class AutolineExtract:
 
             carros = carros.append(self.__extract_data(data), ignore_index=True)
 
-        return carros
+        return carros.head(max_batch_size)
 
 '''
 AdId: 15916733
