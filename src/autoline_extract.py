@@ -32,7 +32,7 @@ class AutolineExtract:
         data.to_csv('raw/autoline/'+str_hora+'.csv',index=False)
         return data
 
-    def __extract_data(data):
+    def __extract_data(self, data):
         tmp_row = {}
 
         tmp_row['AD_ID'] = data['AdId']
@@ -90,21 +90,24 @@ class AutolineExtract:
 
         return tmp_row
 
-    def __get_carros_ids(qntd_carros) -> list:
+    def __get_carros_ids(self, qntd_carros) -> list:
 
         ids = []
         paginas = math.ceil(qntd_carros/24)
 
-        for i in range(1, paginas):
+        for i in range(1, paginas + 1):
             url = "https://busca.autoline.com.br/comprar/carros/novos-seminovos-usados/todos-os-estados/todas-as-cidades/todas-as-marcas/todos-os-modelos/todas-as-versoes/todos-os-anos/todas-as-cores/todos-os-precos/?sort=20&page=" + str(i)
             
             response = requests.get(url=url)
-            html = open(response.text).read()
-            soup = BeautifulSoup(html)
+            html = response.text
+            soup = BeautifulSoup(html, features="html.parser")
 
-            infos = soup.find_all("li")
+            infos = soup.find_all("li", attrs={'class':'nm-product-item'})
             for info in infos:
-                ids.append(info['data-pid'])
+                try:
+                    ids.append(info['data-pid'])
+                except:
+                    continue
         return ids
 
     def __get_recent_cars(self, max_batch_size) -> pd.DataFrame:
