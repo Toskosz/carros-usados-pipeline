@@ -87,7 +87,7 @@ class AutolineTransform:
             "QUITADO": [self.__compute_bool],
             "REGISTRAMENTO_PAGO": [self.__compute_bool],
             "VENDEDOR_PJ": [self.__compute_bool],
-            "NAO_ACEITA_TROCA": [self.__compute_bool],
+            "ACEITA_TROCA": [self.__compute_inverse_bool],
             "IMPOSTOS_PAGOS": [self.__compute_bool],
             "ZEROKM": [self.__clean_str_column],
             "KILOMETRAGEM": [self.__to_float],
@@ -126,7 +126,13 @@ class AutolineTransform:
         return column.cast(StringType())
 
     def __compute_bool(column):
-        boolDict = {'true':1,'false':0}
+        boolDict = {'VERDADEIRO':1,'FALSO':0}
+
+        map_func = udf(lambda row : boolDict.get(row,row))
+        return map_func(column)
+
+    def __compute_inverse_bool(column):
+        boolDict = {'VERDADEIRO':0,'FALSO':1}
 
         map_func = udf(lambda row : boolDict.get(row,row))
         return map_func(column)
@@ -227,7 +233,6 @@ class AutolineTransform:
             QNTD_PORTAS,
             EMAIL,
             MOTOR,
-            RECURSOS,
             COMBUSTIVEL,
             BLINDADO,
             COLECIONADOR,
@@ -310,7 +315,8 @@ class AutolineTransform:
             RADIO_TOCAFITA,
             DISQUETEIRA,
             ESCAPAMENTO_ESPORTIVO,
-            FREIO_ABS
+            FREIO_ABS,
+            DATA_CARGA
         )
         VALUES (
             %(AD_ID)s,
@@ -324,7 +330,6 @@ class AutolineTransform:
             %(QNTD_PORTAS)s,
             %(EMAIL)s,
             %(MOTOR)s,
-            %(RECURSOS)s,
             %(COMBUSTIVEL)s,
             %(BLINDADO)s,
             %(COLECIONADOR)s,
@@ -407,6 +412,7 @@ class AutolineTransform:
             %(RADIO_TOCAFITA)s,
             %(DISQUETEIRA)s,
             %(ESCAPAMENTO_ESPORTIVO)s,
-            %(FREIO_ABS)s
+            %(FREIO_ABS)s,
+            %(DATA_CARGA)s
         );
         '''

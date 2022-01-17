@@ -238,7 +238,7 @@ class WebmotorsTransform:
             CIDADE_VENDEDOR,
             ESTADO_VENDEDOR,
             UF_VENDEDOR,
-            AD_TYPE,
+            TIPO_ANUNCIO,
             SCORE_VENDEDOR,
             ENTREGA_CARRO,
             TROCA_COM_TROCO,
