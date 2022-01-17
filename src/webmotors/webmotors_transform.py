@@ -2,18 +2,23 @@ from os import listdir
 from os.path import isfile, join
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit, when
+from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper, substring_index
+from pyspark.sql.types import StringType
+import unicodedata
 import datetime
 import ast
 import numpy as np
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
 import psycopg2.extras as p
+import sys
 
 class WebmotorsTransform:
 
     def __init__(self) -> None:
         self.files_path = "raw/webmotors/"
         self.spark = SparkSession.builder.appName("webmotors transformation").getOrCreate()
+        self.matching_string, self.replace_string = self.__make_trans()
 
         self.dummy_columns = {
             'Aceita troca':'ACEITA_TROCA',
@@ -48,7 +53,7 @@ class WebmotorsTransform:
             'Limpador traseiro':'LIMPADOR_TRASEIRO',
             'Protetor de caçamba':'PROTETOR_CACAMBA',
             'Rádio':'RADIO',
-            'Rádio e toca fitas':'RADIO_TOCAFICA',
+            'Rádio e toca fitas':'RADIO_TOCAFITA',
             'Retrovisor fotocrômico':'RETROVISOR_FOTOCROMICO',
             'Retrovisores elétricos':'RETROVISOR_ELETRICO',
             'Rodas de liga leve':'RODAS_LIGA_LEVE',
@@ -87,8 +92,10 @@ class WebmotorsTransform:
             "COMENTARIO_DONO": [self.__clean_str_column]
         }
 
-    def run(self) -> None:
-        last_file = self.__get_last_file()
+    def run(self, last_file=None) -> None:
+        if not last_file:
+            last_file = self.__get_last_file()
+        
         data = self.spark.read.csv(self.files_path + last_file + ".csv", header=True)
         
         # todo: maybe the below process is slow. investigate later.
@@ -121,22 +128,38 @@ class WebmotorsTransform:
         
         self.spark.stop()
 
+    def __make_trans():
+        matching_string = ""
+        replace_string = ""
+
+        for i in range(ord(" "), sys.maxunicode):
+            name = unicodedata.name(chr(i), "")
+            if "WITH" in name:
+                try:
+                    base = unicodedata.lookup(name.split(" WITH")[0])
+                    matching_string += chr(i)
+                    replace_string += base
+                except KeyError:
+                    pass
+
+        return matching_string, replace_string
+
     def __to_str(column):
-        return column.astype(str)
+        return column.cast(StringType())
 
     def __compute_bool(column):
-        return np.where(column == 'true', 1, 0)
+        boolDict = {'true':1,'false':0}
+
+        map_func = udf(lambda row : boolDict.get(row,row))
+        return map_func(column)
 
     def __to_float(column):
-        return column.astype(float)
-
-    def __to_upper(column):
-        return column.str.upper()
+        return column.cast('float')
 
     # removes special characters and uppercase it
-    def __clean_str_column(column):
-        normalized_column = column.str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode('utf-8')
-        return normalized_column.str.upper()
+    def __clean_str_column(self, column):
+        normalized_column = translate(regexp_replace(column, "\p{M}", ""), self.matching_string, self.replace_string)
+        return upper(normalized_column)
 
     # get most recent csv data file
     def __get_last_file(self):
@@ -147,17 +170,21 @@ class WebmotorsTransform:
 
     # computes column BLINDADO
     def __compute_BLINDADO(blindado_column):
-        return np.where(blindado_column == 'N', 0, 1)
+        boolDict = {'S':1,'N':0}
+
+        map_func = udf(lambda row : boolDict.get(row,row))
+        return map_func(blindado_column)
 
     # separates the ESTADO_VENDEDOR into two colums, ESTADO_VENDEDOR and UF_VENDEDOR
     def __compute_UF(estados):
-        uf = estados[estados.find("(")+1:estados.find(")")]
-        return uf
+        estados_tmp = substring_index(estados, '(', -1) # DF)
+        estados_tmp = substring_index(estados, ')', 1) # DF
+        return estados_tmp
 
     # computes new estado values without uf
     def __compute_ESTADO(estados):
-        estado = estados[:estados.find("(")]
-        return estado
+        estados_tmp = substring_index(estados, '(', 1)
+        return estados_tmp
 
     # verifies if dummy column exists in the row atributos and optionals
     def __has_att(original_name,atts_atributos, atts_optionals):
@@ -211,7 +238,7 @@ class WebmotorsTransform:
             CIDADE_VENDEDOR,
             ESTADO_VENDEDOR,
             UF_VENDEDOR,
-            AD_TYPE,
+            TIPO_ANUNCIO,
             SCORE_VENDEDOR,
             ENTREGA_CARRO,
             TROCA_COM_TROCO,
@@ -243,7 +270,7 @@ class WebmotorsTransform:
             LIMPADOR_TRASEIRO,
             PROTETOR_CACAMBA,
             RADIO,
-            RADIO_TOCAFICA,
+            RADIO_TOCAFITA,
             RETROVISOR_FOTOCROMICO,
             RETROVISOR_ELETRICO,
             RODAS_LIGA_LEVE,
@@ -315,7 +342,7 @@ class WebmotorsTransform:
             %(LIMPADOR_TRASEIRO)s,
             %(PROTETOR_CACAMBA)s,
             %(RADIO)s,
-            %(RADIO_TOCAFICA)s,
+            %(RADIO_TOCAFITA)s,
             %(RETROVISOR_FOTOCROMICO)s,
             %(RETROVISOR_ELETRICO)s,
             %(RODAS_LIGA_LEVE)s,
