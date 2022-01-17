@@ -66,7 +66,7 @@ class WebmotorsExtract:
 
         tmp_row['ESTADO_VENDEDOR'] = vendedor['State']
 
-        tmp_row['AD_TYPE'] = vendedor['AdType']['Value']
+        tmp_row['TIPO_ANUNCIO'] = vendedor['AdType']['Value']
         tmp_row['SCORE_VENDEDOR'] = vendedor['DealerScore']
         tmp_row['ENTREGA_CARRO'] = vendedor['CarDelivery']
         tmp_row['TROCA_COM_TROCO'] = vendedor['TrocaComTroco']
@@ -150,7 +150,7 @@ class WebmotorsExtract:
     def __get_recent_cars(self, max_batch_size) -> pd.DataFrame:
         # DataFrame for batching
         carros_webmotors = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
-        'ATRIBUTOS','BLINDADO','COR','TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','AD_TYPE','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO',
+        'ATRIBUTOS','BLINDADO','COR','TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','TIPO_ANUNCIO','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO',
         'PORCENTAGEM_FIPE','OPTIONALS','COMBUSTIVEL'])
 
         contador = 1
