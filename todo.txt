@@ -1,2 +1,2 @@
-test autoline extraction
-get files from example git
+se tudo certo concertar git, pois nele é como se fosse novos arquivos
+continuar pegando arquivos necessarios do git exemplo, continuar da pasta containers

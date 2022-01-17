@@ -1,5 +1,5 @@
 import unittest
-from src.autoline_extract import AutolineExtract
+from src.autoline.autoline_extract import AutolineExtract
  
 # comando de rodar testes
 # python -m unittest discover <test_directory>
