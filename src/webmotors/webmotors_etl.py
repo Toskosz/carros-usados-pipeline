@@ -22,7 +22,7 @@ class WebmotorsExtract:
             'User-Agent':	'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0'
         }
 
-    def run(self, max_batch_size) -> None:
+    def run(self, max_batch_size):
         data = self.__get_recent_cars(max_batch_size)
         now = datetime.now()
         str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)

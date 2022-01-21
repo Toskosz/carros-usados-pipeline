@@ -1,1 +1,2 @@
 continuar pegando arquivos necessarios do git exemplo, continuar da pasta containers
+trigger de mover dados do STG para o final
