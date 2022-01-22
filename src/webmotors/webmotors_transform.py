@@ -1,13 +1,11 @@
 from os import listdir
 from os.path import isfile, join
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import lit, when
-from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper, substring_index
+from pyspark.sql.functions import regexp_replace, udf, translate, upper, substring_index
 from pyspark.sql.types import StringType
 import unicodedata
 import datetime
 import ast
-import numpy as np
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
 import psycopg2.extras as p
