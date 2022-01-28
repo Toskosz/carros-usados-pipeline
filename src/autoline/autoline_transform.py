@@ -142,7 +142,7 @@ class AutolineTransform:
     def __remove_jump_line(column):
         return regexp_replace(column, "\\n", "")
 
-    def __make_trans():
+    def __make_trans(self):
         matching_string = ""
         replace_string = ""
 

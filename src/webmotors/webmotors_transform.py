@@ -126,7 +126,7 @@ class WebmotorsTransform:
         
         self.spark.stop()
 
-    def __make_trans():
+    def __make_trans(self):
         matching_string = ""
         replace_string = ""
 

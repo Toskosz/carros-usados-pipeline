@@ -1,3 +1,4 @@
+from time import sleep
 import requests
 import pandas as pd
 from datetime import datetime
@@ -8,19 +9,17 @@ class AutolineExtract:
 
     def __init__(self) -> None:
         self.req_headers = {
-            'Host': 'api2.autoline.com.br',
-            'Connection': 'keep-alive',
-            'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="96", "Google Chrome";v="96"',
             'Accept': 'application/json, text/plain, */*',
-            'sec-ch-ua-mobile': '?0',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36',
-            'sec-ch-ua-platform': '"Windows"',
-            'Origin': 'https://www.autoline.com.br',
-            'Sec-Fetch-Site': 'same-site',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Dest': 'empty',
             'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Cache-Control': 'max-age=0',
+            'Connection': 'keep-alive',
+            'Host': 'api2.autoline.com.br',
+            'Origin': 'https://www.autoline.com.br',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:96.0) Gecko/20100101 Firefox/96.0'
         }
 
     def run(self, max_batch_size):
@@ -121,7 +120,8 @@ class AutolineExtract:
         for id in carros_ids:
             data_api = "https://api2.autoline.com.br/api/pub/" + str(id)
 
-            response = requests.get(url=data_api)
+            sleep(5)
+            response = requests.get(url=data_api, headers=self.req_headers)
             data = response.json()
 
             carros = carros.append(self.__extract_data(data), ignore_index=True)
