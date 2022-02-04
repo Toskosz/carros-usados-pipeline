@@ -162,12 +162,6 @@ class AutolineTransform:
         normalized_column = translate(regexp_replace(c, "\p{M}", ""), self.matching_string, self.replace_string)
         return upper(normalized_column)
 
-    def __get_last_file(self):
-        # get all csv files
-        files = {f.removesuffix(".csv") : datetime.strptime(f.removesuffix(".csv"), '%Y%m%d%H') for f in listdir(self.files_path) if isfile(join(self.files_path, f))}
-        # latest file
-        return max(files, key=files.get)
-
     # verifies if dummy column exists in the row recursos
     def __has_att(original_name,atts_recursos):
         recursos = atts_recursos.replace('[', '')
@@ -183,35 +177,38 @@ class AutolineTransform:
 
         return 0
 
-    def run(self, last_file=None) -> None:
-        if not last_file:
-            last_file = self.__get_last_file()
+    def run(self, default_dataframe=None,last_file=None) -> None:
+        try:
+            if last_file:
+                data = self.spark.read.csv(self.files_path + last_file + ".csv", header=True)
+            else:
+                data = self.spark.createDataFrame(default_dataframe)
+            
+            for original_name, column_name in self.dummy_columns:
+                data = data.withColumn(column_name, self.__has_att(original_name, data.RECURSOS))
 
-        data = self.spark.read.csv(self.files_path + last_file + ".csv", header=True)
-        
-        for original_name, column_name in self.dummy_columns:
-            data = data.withColumn(column_name, self.__has_att(original_name, data.RECURSOS))
+            # drop atributos and optionals column
+            data_to_type_compute = data.drop("RECURSOS")
 
-        # drop atributos and optionals column
-        data_to_type_compute = data.drop("RECURSOS")
+            # types, string cleaning, computes special columns
+            for coluna, lst_f in self.columns_func_assigns.items():
+                for f in lst_f:
+                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(data[coluna]))
 
-        # types, string cleaning, computes special columns
-        for coluna, lst_f in self.columns_func_assigns.items():
-            for f in lst_f:
-                data_to_type_compute = data_to_type_compute.withColumn(coluna, f(data[coluna]))
+            # fills na values and creates DATA_CARGA column with datetime of load
+            data_filled_na = data_to_type_compute.na.fill("INDISPONIVEL")
+            data_to_load = data_filled_na.withColumn("DATA_CARGA", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 
-        # fills na values and creates DATA_CARGA column with datetime of load
-        data_filled_na = data_to_type_compute.na.fill("INDISPONIVEL")
-        data_to_load = data_filled_na.withColumn("DATA_CARGA", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+            # Uses pandas dataframe to make the load because i cant do it with
+            # pyspark at the moment
+            # todo: load with pyspark dataframe
+            pandas_dataframe = data_to_load.toPandas()
 
-        # Uses pandas dataframe to make the load because i cant do it with
-        # pyspark at the moment
-        # todo: load with pyspark dataframe
-        pandas_dataframe = data_to_load.toPandas()
+            self.__load_data(pandas_dataframe.values)
 
-        self.__load_data(pandas_dataframe.values)
-        
-        self.spark.stop()
+            self.spark.stop()
+        except:
+            self.spark.stop()
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
