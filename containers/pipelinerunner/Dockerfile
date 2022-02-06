@@ -1,4 +1,5 @@
 FROM python:3.9.5
+FROM openjdk:8
 
 # set up location of code
 WORKDIR /code
