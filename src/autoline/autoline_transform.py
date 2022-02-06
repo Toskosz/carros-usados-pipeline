@@ -409,5 +409,5 @@ class AutolineTransform:
             %(ESCAPAMENTO_ESPORTIVO)s,
             %(FREIO_ABS)s,
             %(DATA_CARGA)s
-        );
+        ) ON CONFLICT DO NOTHING;
         '''

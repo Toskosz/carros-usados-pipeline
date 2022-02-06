@@ -356,5 +356,5 @@ class WebmotorsTransform:
             %(VOLANTE_REG_ALTURA)s,
             %(COMBUSTIVEL)s,
             %(DATA_CARGA)s
-        );
+        )ON CONFLICT DO NOTHING;
         '''
