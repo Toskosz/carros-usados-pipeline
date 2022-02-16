@@ -24,9 +24,9 @@ class AutolineExtract:
 
     def run(self, max_batch_size):
         data = self.__get_recent_cars(max_batch_size)
-        now = datetime.now()
-        str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
-        data.to_csv('raw/autoline/'+str_hora+'.csv',index=False)
+        # now = datetime.now()
+        # str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
+        # data.to_csv('raw/autoline/'+str_hora+'.csv',index=False)
         return data
 
     def __extract_data(self, data):

@@ -1,6 +1,6 @@
 from autoline.autoline_extract import AutolineExtract
 from autoline.autoline_transform import AutolineTransform
-from webmotors.webmotors_etl import WebmotorsExtract
+from webmotors.webmotors_extract import WebmotorsExtract
 from webmotors.webmotors_transform import WebmotorsTransform
 
 def run() -> None:
