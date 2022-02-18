@@ -9,7 +9,7 @@ shell:
 	docker exec -ti pipelinerunner bash
 
 pytest:
-	docker exec pipelinerunner python -m unittest discover /src/test
+	docker exec pipelinerunner python -m unittest discover /code/test
 
 stop-etl: 
 	docker exec pipelinerunner service cron stop
