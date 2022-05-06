@@ -1,5 +1,3 @@
-from os import listdir
-from os.path import isfile, join
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper
 import datetime

@@ -1,5 +1,3 @@
-from os import listdir
-from os.path import isfile, join
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import regexp_replace, udf, translate, upper, substring_index
 from pyspark.sql.types import StringType
@@ -161,13 +159,6 @@ class WebmotorsTransform:
     def __clean_str_column(self, column):
         normalized_column = translate(regexp_replace(column, "\p{M}", ""), self.matching_string, self.replace_string)
         return upper(normalized_column)
-
-    # get most recent csv data file
-    def __get_last_file(self):
-        # get all csv files
-        files = {f.removesuffix(".csv") : datetime.strptime(f.removesuffix(".csv"), '%Y%m%d%H') for f in listdir(self.files_path) if isfile(join(self.files_path, f))}
-        # latest file
-        return max(files, key=files.get)
 
     # computes column BLINDADO
     def __compute_BLINDADO(blindado_column):
