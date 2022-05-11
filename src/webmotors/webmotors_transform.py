@@ -1,20 +1,46 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, udf, translate, upper, substring_index
-from pyspark.sql.types import StringType
-import unicodedata
-import datetime
-import ast
+from pyspark.sql.functions import regexp_replace, udf, translate, upper, substring_index, when, col, current_timestamp
+from pyspark.sql.types import StringType, StructField, StructType, FloatType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
 import psycopg2.extras as p
+import unicodedata
 import sys
 
 class WebmotorsTransform:
 
     def __init__(self) -> None:
-        self.files_path = "raw/webmotors/"
         self.spark = SparkSession.builder.appName("webmotors transformation").getOrCreate()
         self.matching_string, self.replace_string = self.__make_trans()
+
+        self.schema = StructType([
+            StructField("AD_ID", StringType(), True),                
+            StructField("TITULO", StringType(), True),               
+            StructField("FABRICANTE", StringType(), True),           
+            StructField("MODELO", StringType(), True),               
+            StructField("VERSAO", StringType(), True),               
+            StructField("ANO_FABRICACAO", StringType(), True),       
+            StructField("ANO_MODELO", FloatType(), True),          
+            StructField("KILOMETRAGEM", FloatType(), True),        
+            StructField("TRANSMISSAO", StringType(), True),          
+            StructField("QNTD_PORTAS", StringType(), True),          
+            StructField("CORPO_VEICULO", StringType(), True),        
+            StructField("ATRIBUTOS", StringType(), True),            
+            StructField("BLINDADO", StringType(), True),             
+            StructField("COR", StringType(), True),                  
+            StructField("TIPO_VENDEDOR", StringType(), True),        
+            StructField("CIDADE_VENDEDOR", StringType(), True),      
+            StructField("ESTADO_VENDEDOR", StringType(), True),      
+            StructField("TIPO_ANUNCIO", StringType(), True),         
+            StructField("ENTREGA_CARRO", StringType(), True),        
+            StructField("TROCA_COM_TROCO", StringType(), True),      
+            StructField("PRECO", FloatType(), True),               
+            StructField("PRECO_DESEJADO", FloatType(), True),      
+            StructField("COMENTARIO_DONO", StringType(), True),      
+            StructField("PORCENTAGEM_FIPE", StringType(), True),     
+            StructField("OPTIONALS", StringType(), True),            
+            StructField("COMBUSTIVEL", StringType(), True)
+        ])
 
         self.dummy_columns = {
             'Aceita troca':'ACEITA_TROCA',
@@ -88,20 +114,19 @@ class WebmotorsTransform:
             "COMENTARIO_DONO": [self.__clean_str_column]
         }
 
-    def run(self, default_dataframe=None,last_file=None) -> None:
+    def run(self, default_dataframe) -> None:
         try:
-            if last_file:
-                data = self.spark.read.csv(self.files_path + last_file + ".csv", header=True)
-            else:
-                data = self.spark.createDataFrame(default_dataframe)
+            data = self.spark.createDataFrame(default_dataframe, schema=self.schema)
 
-            # todo: maybe the below process is slow. investigate later.
-            # updates dummy columns to data
-            for original_name, column_name in self.dummy_columns:
-                data = data.withColumn(column_name, self.__has_att(original_name, data.ATRIBUTOS, data.OPTIONALS))
+            print("[LOG] Dataframe criado")
+
+            for original_name, column_name in self.dummy_columns.items():
+                data = data.withColumn(column_name, when((col("ATRIBUTOS").contains(original_name)), 1).when((col("OPTIONALS").contains(original_name)), 1).otherwise(0))
 
             # drop atributos and optionals column
             data_with_dummy_columns = data.drop("ATRIBUTOS","OPTIONALS")
+
+            print("[LOG] Colunas dropadas")
 
             # separation of UF and ESTADO from ESTADO column
             data_with_uf = data_with_dummy_columns.withColumn("UF_VENDEDOR", self.__compute_UF(data_with_dummy_columns.ESTADO_VENDEDOR))
@@ -110,21 +135,24 @@ class WebmotorsTransform:
             # types, string cleaning, computes special columns
             for coluna, lst_f in self.columns_func_assigns.items():
                 for f in lst_f:
-                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(data[coluna]))
+                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
 
-            # fills na values and creates DATA_CARGA column with datetime of load
-            data_filled_na = data_to_type_compute.na.fill("INDISPONIVEL")
-            data_to_load = data_filled_na.withColumn("DATA_CARGA", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+            # creates DATA_CARGA column with datetime of load
+            data_to_load = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
 
-            # Uses pandas dataframe to make the load because i cant do it with
-            # pyspark at the moment
+            print("[LOG] Transformações feitas")
+
+            # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
             # todo: load with pyspark dataframe
             pandas_dataframe = data_to_load.toPandas()
 
             self.__load_data(pandas_dataframe.values)
-            
+            print("[LOG] Carga concluída")
+
             self.spark.stop()
-        except:
+        except Exception as E:
+            print("[ERRO] O seguinte erro interrompeu o processo:")
+            print(E)
             self.spark.stop()
 
     def __make_trans(self):
@@ -143,16 +171,16 @@ class WebmotorsTransform:
 
         return matching_string, replace_string
 
-    def __to_str(column):
+    def __to_str(self, column):
         return column.cast(StringType())
 
-    def __compute_bool(column):
+    def __compute_bool(self, column):
         boolDict = {'true':1,'false':0}
 
         map_func = udf(lambda row : boolDict.get(row,row))
         return map_func(column)
 
-    def __to_float(column):
+    def __to_float(self, column):
         return column.cast('float')
 
     # removes special characters and uppercase it
@@ -161,42 +189,22 @@ class WebmotorsTransform:
         return upper(normalized_column)
 
     # computes column BLINDADO
-    def __compute_BLINDADO(blindado_column):
+    def __compute_BLINDADO(self, blindado_column):
         boolDict = {'S':1,'N':0}
 
         map_func = udf(lambda row : boolDict.get(row,row))
         return map_func(blindado_column)
 
     # separates the ESTADO_VENDEDOR into two colums, ESTADO_VENDEDOR and UF_VENDEDOR
-    def __compute_UF(estados):
+    def __compute_UF(self, estados):
         estados_tmp = substring_index(estados, '(', -1) # DF)
         estados_tmp = substring_index(estados, ')', 1) # DF
         return estados_tmp
 
     # computes new estado values without uf
-    def __compute_ESTADO(estados):
+    def __compute_ESTADO(self, estados):
         estados_tmp = substring_index(estados, '(', 1)
         return estados_tmp
-
-    # verifies if dummy column exists in the row atributos and optionals
-    def __has_att(original_name,atts_atributos, atts_optionals):
-        atts_atributos_val = atts_atributos.replace('[', '')
-        atts_atributos_val = atts_atributos_val.replace(']', '')
-
-        atts_optionals_val = atts_optionals.replace('[', '')
-        atts_optionals_val = atts_optionals_val.replace(']', '')
-
-        atts_val = atts_atributos_val + ',' + atts_optionals
-
-        # string representation of dicts to actual list of dicts
-        atts_dict = ast.literal_eval(atts_val)
-
-        for att_dict in atts_dict:
-            for _, attribute_desc in att_dict.items():
-                if original_name == attribute_desc:
-                    return 1
-    
-        return 0
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:

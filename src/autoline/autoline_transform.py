@@ -1,20 +1,68 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper
-import datetime
-import ast
+from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper, when, col, current_timestamp
+from pyspark.sql.types import StringType, StructField, StructType, FloatType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
 import psycopg2.extras as p
-from pyspark.sql.types import StringType
 import unicodedata
 import sys
 
 class AutolineTransform:
 
     def __init__(self) -> None:
-        self.files_path = "raw/autoline/"
         self.spark = SparkSession.builder.appName("autoline transformation").getOrCreate()
         self.matching_string, self.replace_string = self.__make_trans()
+        
+        self.schema = StructType([
+            StructField("AD_ID", StringType(), True),
+            StructField("INFORMACOES_ADICIONAIS", StringType(), True),
+            StructField("CORPO_VEICULO", StringType(), True),
+            StructField("ANO_FABRICACAO", StringType(), True),
+            StructField("CIDADE", StringType(), True),
+            StructField("COR", StringType(), True),
+            StructField("DATA_CRIACAO_AD", StringType(), True),
+            StructField("QNTD_PORTAS", StringType(), True),
+            StructField("EMAIL", StringType(), True),
+            StructField("MOTOR", StringType(), True),
+            StructField("RECURSOS", StringType(), True),
+            StructField("COMBUSTIVEL", StringType(), True),
+            StructField("BLINDADO", StringType(), True),
+            StructField("COLECIONADOR", StringType(), True),
+            StructField("ADAPTADO_DEFICIENCIA", StringType(), True),
+            StructField("FINANCIAVEL", StringType(), True),
+            StructField("FINANCIADO", StringType(), True),
+            StructField("GARANTIA_DE_FABRICA", StringType(), True),
+            StructField("DONO_UNICO", StringType(), True),
+            StructField("QUITADO", StringType(), True),
+            StructField("REGISTRAMENTO_PAGO", StringType(), True),
+            StructField("VENDEDOR_PJ", StringType(), True),
+            StructField("ACEITA_TROCA", StringType(), True),
+            StructField("IMPOSTOS_PAGOS", StringType(), True),
+            StructField("KILOMETRAGEM", StringType(), True),
+            StructField("LINK_AD", StringType(), True),
+            StructField("FABRICANTE", StringType(), True),
+            StructField("CELULAR", StringType(), True),
+            StructField("MODELO", StringType(), True),
+            StructField("ANO_MODELO", StringType(), True),
+            StructField("BAIRRO", StringType(), True),
+            StructField("TELEFONE", StringType(), True),
+            StructField("PRECO", FloatType(), True),
+            StructField("PRECO_FIPE", StringType(), True),
+            StructField("PLACA", StringType(), True),
+            StructField("COR_SECUNDARIA", StringType(), True),
+            StructField("TIPO_VEICULO", StringType(), True),
+            StructField("ENDERECO", StringType(), True),
+            StructField("COMPLEMENTO_ENDERECO", StringType(), True),
+            StructField("DOCUMENTO_VENDEDOR", StringType(), True),
+            StructField("NOME_VENDEDOR", StringType(), True),
+            StructField("UF", StringType(), True),
+            StructField("ESTADO", StringType(), True),
+            StructField("TRANSMISSAO", StringType(), True),
+            StructField("TIPO_VENDEDOR", StringType(), True),
+            StructField("DATA_ATT_AD", StringType(), True),
+            StructField("VERSAO", StringType(), True),
+            StructField("WHATSAPP", StringType(), True)
+        ])
 
         self.dummy_columns = {
             'Ar Condicionado':'AR_CONDICIONADO',
@@ -63,7 +111,7 @@ class AutolineTransform:
         }
 
         self.columns_func_assigns = {
-            "INFORMACOES_ADICIONAIS": [self.__clean_str_column, self.__remove_jump_line],
+            "INFORMACOES_ADICIONAIS": [self.__remove_jump_line],    #self.__clean_str_column, 
             "CORPO_VEICULO": [self.__clean_str_column],
             "ANO_FABRICACAO": [self.__to_str],
             "CIDADE": [self.__clean_str_column],
@@ -104,36 +152,36 @@ class AutolineTransform:
             "VERSAO": [self.__clean_str_column],
         }
 
-    def __to_number(column):
+    def __to_number(self, column):
         doorsDict = {'ZERO':'0','UM':'1','DOIS':'2','TRES':'3','QUATRO':'4','CINCO':'5','SEIS':'6',
         'SETE':'7', 'OITO':'8', 'NOVE':'9', 'DEZ':'10'}
 
         map_func = udf(lambda row : doorsDict.get(row,row))
         return map_func(column)
 
-    def __to_float(column):
-        return column.cast('float')
+    def __to_float(self, column):
+        return column.cast(FloatType())
 
-    def __to_str(column):
+    def __to_str(self, column):
         return column.cast(StringType())
 
-    def __compute_bool(column):
+    def __compute_bool(self, column):
         boolDict = {'VERDADEIRO':1,'FALSO':0}
 
         map_func = udf(lambda row : boolDict.get(row,row))
         return map_func(column)
 
-    def __compute_inverse_bool(column):
+    def __compute_inverse_bool(self, column):
         boolDict = {'VERDADEIRO':0,'FALSO':1}
 
         map_func = udf(lambda row : boolDict.get(row,row))
         return map_func(column)
 
-    def __fix_date_type(column):
+    def __fix_date_type(self, column):
         column_fixed = regexp_replace(column, "T", " ")
         return to_timestamp(column_fixed, 'yyyy-MM-dd HH:mm:ss')
 
-    def __remove_jump_line(column):
+    def __remove_jump_line(self, column):
         return regexp_replace(column, "\\n", "")
 
     def __make_trans(self):
@@ -156,52 +204,41 @@ class AutolineTransform:
         normalized_column = translate(regexp_replace(c, "\p{M}", ""), self.matching_string, self.replace_string)
         return upper(normalized_column)
 
-    # verifies if dummy column exists in the row recursos
-    def __has_att(original_name,atts_recursos):
-        recursos = atts_recursos.replace('[', '')
-        recursos = recursos.replace(']', '')
-
-        # string representation of dicts to actual list of dicts
-        recursos_dict = ast.literal_eval(recursos)
-
-        for recurso_dict in recursos_dict:
-            for _, recurso_desc in recurso_dict.items():
-                if original_name == recurso_desc:
-                    return 1
-
-        return 0
-
-    def run(self, default_dataframe=None,last_file=None) -> None:
+    def run(self, default_dataframe) -> None:
         try:
-            if last_file:
-                data = self.spark.read.csv(self.files_path + last_file + ".csv", header=True)
-            else:
-                data = self.spark.createDataFrame(default_dataframe)
+            data = self.spark.createDataFrame(default_dataframe, schema=self.schema)
             
-            for original_name, column_name in self.dummy_columns:
-                data = data.withColumn(column_name, self.__has_att(original_name, data.RECURSOS))
+            print("[LOG] Dataframe criado")
+
+            for original_name, column_name in self.dummy_columns.items():
+                data = data.withColumn(column_name, when((col("RECURSOS").contains(original_name)), 1).otherwise(0))
 
             # drop atributos and optionals column
             data_to_type_compute = data.drop("RECURSOS")
 
+            print("[LOG] Colunas desnecessárias dropadas")
+
             # types, string cleaning, computes special columns
             for coluna, lst_f in self.columns_func_assigns.items():
                 for f in lst_f:
-                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(data[coluna]))
+                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
 
             # fills na values and creates DATA_CARGA column with datetime of load
-            data_filled_na = data_to_type_compute.na.fill("INDISPONIVEL")
-            data_to_load = data_filled_na.withColumn("DATA_CARGA", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+            data_to_load = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
 
-            # Uses pandas dataframe to make the load because i cant do it with
-            # pyspark at the moment
+            print("[LOG] Transformações feitas")
+
+            # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
             # todo: load with pyspark dataframe
             pandas_dataframe = data_to_load.toPandas()
 
             self.__load_data(pandas_dataframe.values)
+            print("[LOG] Carga concluída")
 
             self.spark.stop()
-        except:
+        except Exception as E:
+            print("[ERRO] O seguinte erro interrompeu o processo:")
+            print(E)
             self.spark.stop()
 
     def __load_data(self,data):

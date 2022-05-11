@@ -29,6 +29,7 @@ class AutolineExtract:
         # data.to_csv('raw/autoline/'+str_hora+'.csv',index=False)
         return data
 
+    # Extract only the data we want
     def __extract_data(self, data):
         tmp_row = {}
 
