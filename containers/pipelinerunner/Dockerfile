@@ -20,20 +20,20 @@ RUN pip install -r requirements.txt
 COPY ./ /code/
 
 # install cron
-#RUN apt-get update && apt-get install cron -y
+RUN apt-get update && apt-get install cron -y
 
 # ref: https://stackoverflow.com/questions/37458287/how-to-run-a-cron-job-inside-a-docker-container
-# Copy pull_cars_info file to the cron.d directory
-#COPY /scheduler/pull_cars_info /etc/cron.d/pull_cars_info
+# Copy pull_data file to the cron.d directory
+COPY /scheduler/pull_data /etc/cron.d/pull_data
  
 # Give execution rights on the cron job
-#RUN chmod 0644 /etc/cron.d/pull_cars_info
+RUN chmod 0644 /etc/cron.d/pull_data
 
 # Apply cron job
-#RUN crontab /etc/cron.d/pull_cars_info
+RUN crontab /etc/cron.d/pull_data
 
 # Create the log file to be able to run tail
-#RUN touch /var/log/cron.log
+RUN touch /var/log/cron.log
  
 # Run cron
-#CMD cron && tail -f /var/log/cron.log
+CMD cron && tail -f /var/log/cron.log
