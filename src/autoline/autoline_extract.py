@@ -78,7 +78,6 @@ class AutolineExtract:
         tmp_row['ESTADO'] = data['StateName']
         tmp_row['TRANSMISSAO'] = data['TransmissionName']
         tmp_row['TIPO_VENDEDOR'] = data['TypeSellerName']
-        tmp_row['DATA_ATT_AD'] = data['UpdatedDate']
         tmp_row['VERSAO'] = data['VersionName']
         tmp_row['WHATSAPP'] = data['WhatsAppNumber']
 
@@ -110,7 +109,7 @@ class AutolineExtract:
             'QNTD_PORTAS','EMAIL','MOTOR','RECURSOS','COMBUSTIVEL','BLINDADO','COLECIONADOR','ADAPTADO_DEFICIENCIA','FINANCIAVEL','FINANCIADO','GARANTIA_DE_FABRICA','DONO_UNICO',
             'QUITADO','REGISTRAMENTO_PAGO','VENDEDOR_PJ','ACEITA_TROCA','IMPOSTOS_PAGOS','KILOMETRAGEM','LINK_AD','FABRICANTE','CELULAR','MODELO','ANO_MODELO','BAIRRO',
             'TELEFONE','PRECO','PRECO_FIPE','PLACA','COR_SECUNDARIA','TIPO_VEICULO','ENDERECO','COMPLEMENTO_ENDERECO','DOCUMENTO_VENDEDOR',
-            'NOME_VENDEDOR','UF','ESTADO','TRANSMISSAO','TIPO_VENDEDOR','DATA_ATT_AD','VERSAO','WHATSAPP'])
+            'NOME_VENDEDOR','UF','ESTADO','TRANSMISSAO','TIPO_VENDEDOR','VERSAO','WHATSAPP'])
 
         carros_ids = self.__get_carros_ids(max_batch_size)
         

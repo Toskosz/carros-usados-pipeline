@@ -210,7 +210,7 @@ class WebmotorsTransform:
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
             p.execute_batch(curr, self.__get_exchange_insert_query(), data)
 
-    def __get_exchange_insert_query() -> str:
+    def __get_exchange_insert_query(self) -> str:
         return '''
         INSERT INTO STG.WEBMOTORS (
             AD_ID,

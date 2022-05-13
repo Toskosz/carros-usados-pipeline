@@ -6,6 +6,8 @@ from util.warehouse import WarehouseConnection
 import psycopg2.extras as p
 import unicodedata
 import sys
+import numpy as np
+from sqlalchemy import column, create_engine, table
 
 class AutolineTransform:
 
@@ -59,7 +61,6 @@ class AutolineTransform:
             StructField("ESTADO", StringType(), True),
             StructField("TRANSMISSAO", StringType(), True),
             StructField("TIPO_VENDEDOR", StringType(), True),
-            StructField("DATA_ATT_AD", StringType(), True),
             StructField("VERSAO", StringType(), True),
             StructField("WHATSAPP", StringType(), True)
         ])
@@ -148,16 +149,13 @@ class AutolineTransform:
             "ESTADO": [self.__clean_str_column],
             "TRANSMISSAO": [self.__clean_str_column],
             "TIPO_VENDEDOR": [self.__clean_str_column],
-            "DATA_ATT_AD": [self.__fix_date_type],
             "VERSAO": [self.__clean_str_column],
         }
 
     def __to_number(self, column):
-        doorsDict = {'ZERO':'0','UM':'1','DOIS':'2','TRES':'3','QUATRO':'4','CINCO':'5','SEIS':'6',
-        'SETE':'7', 'OITO':'8', 'NOVE':'9', 'DEZ':'10'}
-
-        map_func = udf(lambda row : doorsDict.get(row,row))
-        return map_func(column)
+        return when(column.startswith("ZERO"), "0").when(column.startswith("UM"), "1").when(column.startswith("DOIS"), "2").when(column.startswith("TRES"), "3") \
+        .when(column.startswith("QUATRO"), "4").when(column.startswith("CINCO"), "5").when(column.startswith("SEIS"), "6").when(column.startswith("SETE"), "7") \
+        .when(column.startswith("OITO"), "8").when(column.startswith("NOVE"), "9").when(column.startswith("DEZ"), "10")
 
     def __to_float(self, column):
         return column.cast(FloatType())
@@ -166,20 +164,18 @@ class AutolineTransform:
         return column.cast(StringType())
 
     def __compute_bool(self, column):
-        boolDict = {'VERDADEIRO':1,'FALSO':0}
-
-        map_func = udf(lambda row : boolDict.get(row,row))
-        return map_func(column)
+        return when(column.startswith("VERDADEIRO"), 1).when(column.startswith("FALSO"), 0)
 
     def __compute_inverse_bool(self, column):
-        boolDict = {'VERDADEIRO':0,'FALSO':1}
-
-        map_func = udf(lambda row : boolDict.get(row,row))
-        return map_func(column)
+        return when(column.startswith("VERDADEIRO"), 0).when(column.startswith("FALSO"), 1)
 
     def __fix_date_type(self, column):
         column_fixed = regexp_replace(column, "T", " ")
-        return to_timestamp(column_fixed, 'yyyy-MM-dd HH:mm:ss')
+        column_with_nat = to_timestamp(column_fixed, 'yyyy-MM-dd HH:mm:ss')
+        column_result = regexp_replace(column_with_nat, "NaT", "NULL")
+        #column_result = regexp_replace(column_with_nat, "NaT", NULL) # POSSIVEL  SOLUÇÃO
+        #column_result = regexp_replace(column_with_nat, "NaT", None) # POSSIVEL SOLUÇÃO
+        return column_result
 
     def __remove_jump_line(self, column):
         return regexp_replace(column, "\\n", "")
@@ -231,8 +227,11 @@ class AutolineTransform:
             # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
             # todo: load with pyspark dataframe
             pandas_dataframe = data_to_load.toPandas()
+            # pandas_dataframe.to_csv("teste")
+            # Possivel solução
+            # pandas_dataframe['DATA_CRIACAO_AD'] = pandas_dataframe['DATA_CRIACAO_AD'].replace({np.NaN: None})
 
-            self.__load_data(pandas_dataframe.values)
+            self.__load_data(pandas_dataframe)
             print("[LOG] Carga concluída")
 
             self.spark.stop()
@@ -243,194 +242,203 @@ class AutolineTransform:
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
-            p.execute_batch(curr, self.__get_exchange_insert_query(), data)
+            p.execute_batch(curr, self.__get_exchange_insert_query(data,"stg.autoline"), data.values)
 
-    def __get_exchange_insert_query() -> str:
-        return '''
-        INSERT INTO STG.AUTOLINE (
-            AD_ID,
-            INFORMACOES_ADICIONAIS,
-            CORPO_VEICULO,
-            ANO_FABRICACAO,
-            CIDADE,
-            COR,
-            DATA_CRIACAO_AD,
-            QNTD_PORTAS,
-            EMAIL,
-            MOTOR,
-            COMBUSTIVEL,
-            BLINDADO,
-            COLECIONADOR,
-            ADAPTADO_DEFICIENCIA,
-            FINANCIAVEL,
-            FINANCIADO,
-            GARANTIA_DE_FABRICA,
-            DONO_UNICO,
-            QUITADO,
-            REGISTRAMENTO_PAGO,
-            VENDEDOR_PJ,
-            ACEITA_TROCA,
-            IMPOSTOS_PAGOS,
-            KILOMETRAGEM,
-            LINK_AD,
-            FABRICANTE,
-            CELULAR,
-            MODELO,
-            ANO_MODELO,
-            BAIRRO,
-            TELEFONE,
-            PRECO,
-            PRECO_FIPE,
-            PLACA,
-            COR_SECUNDARIA,
-            TIPO_VEICULO,
-            ENDERECO,
-            COMPLEMENTO_ENDERECO,
-            DOCUMENTO_VENDEDOR,
-            NOME_VENDEDOR,
-            UF,
-            ESTADO,
-            TRANSMISSAO,
-            TIPO_VENDEDOR,
-            DATA_ATT_AD,
-            VERSAO,
-            WHATSAPP,
-            AR_CONDICIONADO,
-            TETO_SOLAR,
-            BANCO_DE_COURO,
-            ALARME,
-            FREIO_ABS,
-            SENSOR_DE_ESTACIONAMENTO,
-            COMPUTAR_DE_BORDO,
-            AIRBAG,
-            AR_QUENTE,
-            RODAS_LIGA_LEVE,
-            AIRBAG_DUPLO,
-            VOLANTE_REG_ALTURA,
-            FAROL_DE_MILHA,
-            BANCO_REGULA_ALTURA,
-            MP3_CD_PLAYER,
-            VIDROS_ELETRICOS,
-            TRAVAS_ELETRICAS,
-            DESEMBACADOR_TRASEIRO,
-            DIR_HIDRAULICA,
-            RETROVISOR_ELETRICO,
-            LIMPADOR_TRASEIRO,
-            ENCOSTO_CABECA_TRASEIRO,
-            DIR_ELETRICA,
-            RADIO,
-            KIT_MULTIMIDIA,
-            CONTROLE_TRACAO,
-            CONTROLE_AUTOMATICO_VEL,
-            GPS,
-            CD_PLAYER,
-            FAROL_NEBLINA,
-            RETROVISOR_FOTOCROMICO,
-            SENSOR_DE_CHUVA,
-            TRACAO_QUATRO_POR_QUATRO,
-            PILOTO_AUTOMATICO,
-            PROTETOR_CACAMBA,
-            CAPOTA_MARITIMA,
-            DVD_PLAYER,
-            FAROL_DE_XENONIO,
-            BANCO_COM_AQUECIMENTO,
-            RADIO_TOCAFITA,
-            DISQUETEIRA,
-            ESCAPAMENTO_ESPORTIVO,
-            FREIO_ABS,
-            DATA_CARGA
-        )
-        VALUES (
-            %(AD_ID)s,
-            %(INFORMACOES_ADICIONAIS)s,
-            %(CORPO_VEICULO)s,
-            %(ANO_FABRICACAO)s,
-            %(CIDADE)s,
-            %(COR)s,
-            %(DATA_CRIACAO_AD)s,
-            %(QNTD_PORTAS)s,
-            %(EMAIL)s,
-            %(MOTOR)s,
-            %(COMBUSTIVEL)s,
-            %(BLINDADO)s,
-            %(COLECIONADOR)s,
-            %(ADAPTADO_DEFICIENCIA)s,
-            %(FINANCIAVEL)s,
-            %(FINANCIADO)s,
-            %(GARANTIA_DE_FABRICA)s,
-            %(DONO_UNICO)s,
-            %(QUITADO)s,
-            %(REGISTRAMENTO_PAGO)s,
-            %(VENDEDOR_PJ)s,
-            %(ACEITA_TROCA)s,
-            %(IMPOSTOS_PAGOS)s,
-            %(KILOMETRAGEM)s,
-            %(LINK_AD)s,
-            %(FABRICANTE)s,
-            %(CELULAR)s,
-            %(MODELO)s,
-            %(ANO_MODELO)s,
-            %(BAIRRO)s,
-            %(TELEFONE)s,
-            %(PRECO)s,
-            %(PRECO_FIPE)s,
-            %(PLACA)s,
-            %(COR_SECUNDARIA)s,
-            %(TIPO_VEICULO)s,
-            %(ENDERECO)s,
-            %(COMPLEMENTO_ENDERECO)s,
-            %(DOCUMENTO_VENDEDOR)s,
-            %(NOME_VENDEDOR)s,
-            %(UF)s,
-            %(ESTADO)s,
-            %(TRANSMISSAO)s,
-            %(TIPO_VENDEDOR)s,
-            %(DATA_ATT_AD)s,
-            %(VERSAO)s,
-            %(WHATSAPP)s,
-            %(AR_CONDICIONADO)s,
-            %(TETO_SOLAR)s,
-            %(BANCO_DE_COURO)s,
-            %(ALARME)s,
-            %(FREIO_ABS)s,
-            %(SENSOR_DE_ESTACIONAMENTO)s,
-            %(COMPUTAR_DE_BORDO)s,
-            %(AIRBAG)s,
-            %(AR_QUENTE)s,
-            %(RODAS_LIGA_LEVE)s,
-            %(AIRBAG_DUPLO)s,
-            %(VOLANTE_REG_ALTURA)s,
-            %(FAROL_DE_MILHA)s,
-            %(BANCO_REGULA_ALTURA)s,
-            %(MP3_CD_PLAYER)s,
-            %(VIDROS_ELETRICOS)s,
-            %(TRAVAS_ELETRICAS)s,
-            %(DESEMBACADOR_TRASEIRO)s,
-            %(DIR_HIDRAULICA)s,
-            %(RETROVISOR_ELETRICO)s,
-            %(LIMPADOR_TRASEIRO)s,
-            %(ENCOSTO_CABECA_TRASEIRO)s,
-            %(DIR_ELETRICA)s,
-            %(RADIO)s,
-            %(KIT_MULTIMIDIA)s,
-            %(CONTROLE_TRACAO)s,
-            %(CONTROLE_AUTOMATICO_VEL)s,
-            %(GPS)s,
-            %(CD_PLAYER)s,
-            %(FAROL_NEBLINA)s,
-            %(RETROVISOR_FOTOCROMICO)s,
-            %(SENSOR_DE_CHUVA)s,
-            %(TRACAO_QUATRO_POR_QUATRO)s,
-            %(PILOTO_AUTOMATICO)s,
-            %(PROTETOR_CACAMBA)s,
-            %(CAPOTA_MARITIMA)s,
-            %(DVD_PLAYER)s,
-            %(FAROL_DE_XENONIO)s,
-            %(BANCO_COM_AQUECIMENTO)s,
-            %(RADIO_TOCAFITA)s,
-            %(DISQUETEIRA)s,
-            %(ESCAPAMENTO_ESPORTIVO)s,
-            %(FREIO_ABS)s,
-            %(DATA_CARGA)s
-        ) ON CONFLICT DO NOTHING;
-        '''
+    def __get_exchange_insert_query(self,df,table) -> str:
+        df_columns = list(df)
+        columns = ", ".join(df_columns)
+
+        values = "VALUES ({})".format(", ".join(["%s" for _ in df_columns]))
+        insert_stmt = "INSERT INTO {} ({}) {}".format(table, columns, values)
+        
+        return insert_stmt
+        
+
+        #return '''
+        #INSERT INTO STG.AUTOLINE (
+        #    AD_ID,
+        #    INFORMACOES_ADICIONAIS,
+        #    CORPO_VEICULO,
+        #    ANO_FABRICACAO,
+        #    CIDADE,
+        #    COR,
+        #    DATA_CRIACAO_AD,
+        #    QNTD_PORTAS,
+        #    EMAIL,
+        #    MOTOR,
+        #    COMBUSTIVEL,
+        #    BLINDADO,
+        #    COLECIONADOR,
+        #    ADAPTADO_DEFICIENCIA,
+        #    FINANCIAVEL,
+        #    FINANCIADO,
+        #    GARANTIA_DE_FABRICA,
+        #    DONO_UNICO,
+        #    QUITADO,
+        #    REGISTRAMENTO_PAGO,
+        #    VENDEDOR_PJ,
+        #    ACEITA_TROCA,
+        #    IMPOSTOS_PAGOS,
+        #    KILOMETRAGEM,
+        #    LINK_AD,
+        #    FABRICANTE,
+        #    CELULAR,
+        #    MODELO,
+        #    ANO_MODELO,
+        #    BAIRRO,
+        #    TELEFONE,
+        #    PRECO,
+        #    PRECO_FIPE,
+        #    PLACA,
+        #    COR_SECUNDARIA,
+        #    TIPO_VEICULO,
+        #    ENDERECO,
+        #    COMPLEMENTO_ENDERECO,
+        #    DOCUMENTO_VENDEDOR,
+        #    NOME_VENDEDOR,
+        #    UF,
+        #    ESTADO,
+        #    TRANSMISSAO,
+        #    TIPO_VENDEDOR,
+        #    DATA_ATT_AD,
+        #    VERSAO,
+        #    WHATSAPP,
+        #    AR_CONDICIONADO,
+        #    TETO_SOLAR,
+        #    BANCO_DE_COURO,
+        #    ALARME,
+        #    FREIO_ABS,
+        #    SENSOR_DE_ESTACIONAMENTO,
+        #    COMPUTAR_DE_BORDO,
+        #    AIRBAG,
+        #    AR_QUENTE,
+        #    RODAS_LIGA_LEVE,
+        #    AIRBAG_DUPLO,
+        #    VOLANTE_REG_ALTURA,
+        #    FAROL_DE_MILHA,
+        #    BANCO_REGULA_ALTURA,
+        #    MP3_CD_PLAYER,
+        #    VIDROS_ELETRICOS,
+        #    TRAVAS_ELETRICAS,
+        #    DESEMBACADOR_TRASEIRO,
+        #    DIR_HIDRAULICA,
+        #    RETROVISOR_ELETRICO,
+        #    LIMPADOR_TRASEIRO,
+        #    ENCOSTO_CABECA_TRASEIRO,
+        #    DIR_ELETRICA,
+        #    RADIO,
+        #    KIT_MULTIMIDIA,
+        #    CONTROLE_TRACAO,
+        #    CONTROLE_AUTOMATICO_VEL,
+        #    GPS,
+        #    CD_PLAYER,
+        #    FAROL_NEBLINA,
+        #    RETROVISOR_FOTOCROMICO,
+        #    SENSOR_DE_CHUVA,
+        #    TRACAO_QUATRO_POR_QUATRO,
+        #    PILOTO_AUTOMATICO,
+        #    PROTETOR_CACAMBA,
+        #    CAPOTA_MARITIMA,
+        #    DVD_PLAYER,
+        #    FAROL_DE_XENONIO,
+        #    BANCO_COM_AQUECIMENTO,
+        #    RADIO_TOCAFITA,
+        #    DISQUETEIRA,
+        #    ESCAPAMENTO_ESPORTIVO,
+        #    FREIO_ABS,
+        #    DATA_CARGA
+        #)
+        #VALUES (
+        #    %(AD_ID)s,
+        #    %(INFORMACOES_ADICIONAIS)s,
+        #    %(CORPO_VEICULO)s,
+        #    %(ANO_FABRICACAO)s,
+        #    %(CIDADE)s,
+        #    %(COR)s,
+        #    %(DATA_CRIACAO_AD)s,
+        #    %(QNTD_PORTAS)s,
+        #    %(EMAIL)s,
+        #    %(MOTOR)s,
+        #    %(COMBUSTIVEL)s,
+        #    %(BLINDADO)s,
+        #    %(COLECIONADOR)s,
+        #    %(ADAPTADO_DEFICIENCIA)s,
+        #    %(FINANCIAVEL)s,
+        #    %(FINANCIADO)s,
+        #    %(GARANTIA_DE_FABRICA)s,
+        #    %(DONO_UNICO)s,
+        #    %(QUITADO)s,
+        #    %(REGISTRAMENTO_PAGO)s,
+        #    %(VENDEDOR_PJ)s,
+        #    %(ACEITA_TROCA)s,
+        #    %(IMPOSTOS_PAGOS)s,
+        #    %(KILOMETRAGEM)s,
+        #    %(LINK_AD)s,
+        #    %(FABRICANTE)s,
+        #    %(CELULAR)s,
+        #    %(MODELO)s,
+        #    %(ANO_MODELO)s,
+        #    %(BAIRRO)s,
+        #    %(TELEFONE)s,
+        #    %(PRECO)s,
+        #    %(PRECO_FIPE)s,
+        #    %(PLACA)s,
+        #    %(COR_SECUNDARIA)s,
+        #    %(TIPO_VEICULO)s,
+        #    %(ENDERECO)s,
+        #    %(COMPLEMENTO_ENDERECO)s,
+        #    %(DOCUMENTO_VENDEDOR)s,
+        #    %(NOME_VENDEDOR)s,
+        #    %(UF)s,
+        #    %(ESTADO)s,
+        #    %(TRANSMISSAO)s,
+        #    %(TIPO_VENDEDOR)s,
+        #    %(DATA_ATT_AD)s,
+        #    %(VERSAO)s,
+        #    %(WHATSAPP)s,
+        #    %(AR_CONDICIONADO)s,
+        #    %(TETO_SOLAR)s,
+        #    %(BANCO_DE_COURO)s,
+        #    %(ALARME)s,
+        #    %(FREIO_ABS)s,
+        #    %(SENSOR_DE_ESTACIONAMENTO)s,
+        #    %(COMPUTAR_DE_BORDO)s,
+        #    %(AIRBAG)s,
+        #    %(AR_QUENTE)s,
+        #    %(RODAS_LIGA_LEVE)s,
+        #    %(AIRBAG_DUPLO)s,
+        #    %(VOLANTE_REG_ALTURA)s,
+        #    %(FAROL_DE_MILHA)s,
+        #    %(BANCO_REGULA_ALTURA)s,
+        #    %(MP3_CD_PLAYER)s,
+        #    %(VIDROS_ELETRICOS)s,
+        #    %(TRAVAS_ELETRICAS)s,
+        #    %(DESEMBACADOR_TRASEIRO)s,
+        #    %(DIR_HIDRAULICA)s,
+        #    %(RETROVISOR_ELETRICO)s,
+        #    %(LIMPADOR_TRASEIRO)s,
+        #    %(ENCOSTO_CABECA_TRASEIRO)s,
+        #    %(DIR_ELETRICA)s,
+        #    %(RADIO)s,
+        #    %(KIT_MULTIMIDIA)s,
+        #    %(CONTROLE_TRACAO)s,
+        #    %(CONTROLE_AUTOMATICO_VEL)s,
+        #    %(GPS)s,
+        #    %(CD_PLAYER)s,
+        #    %(FAROL_NEBLINA)s,
+        #    %(RETROVISOR_FOTOCROMICO)s,
+        #    %(SENSOR_DE_CHUVA)s,
+        #    %(TRACAO_QUATRO_POR_QUATRO)s,
+        #    %(PILOTO_AUTOMATICO)s,
+        #    %(PROTETOR_CACAMBA)s,
+        #    %(CAPOTA_MARITIMA)s,
+        #    %(DVD_PLAYER)s,
+        #    %(FAROL_DE_XENONIO)s,
+        #    %(BANCO_COM_AQUECIMENTO)s,
+        #    %(RADIO_TOCAFITA)s,
+        #    %(DISQUETEIRA)s,
+        #    %(ESCAPAMENTO_ESPORTIVO)s,
+        #    %(FREIO_ABS)s,
+        #    %(DATA_CARGA)s
+        #) ON CONFLICT DO NOTHING;
+        #'''
