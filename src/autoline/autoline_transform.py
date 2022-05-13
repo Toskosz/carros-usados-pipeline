@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper, when, col, current_timestamp
+from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper, when, col, current_timestamp, lit
 from pyspark.sql.types import StringType, StructField, StructType, FloatType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
@@ -220,7 +220,8 @@ class AutolineTransform:
                     data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
 
             # fills na values and creates DATA_CARGA column with datetime of load
-            data_to_load = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
+            tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
+            data_to_load = tmp_data.withColumn("WEBSITE", lit("AUTOLINE"))
 
             print("[LOG] Transformações feitas")
 
