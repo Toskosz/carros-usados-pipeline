@@ -13,11 +13,13 @@ def run() -> None:
     autoline_transform = AutolineTransform()
     autoline_transform.run(data)
     
-    #webmotors_extract = WebmotorsExtract()
-    #data = webmotors_extract.run(25)
+    webmotors_extract = WebmotorsExtract()
+    print("[LOG] Extração inicializada.")
+    data = webmotors_extract.run(20)
+    print("[LOG] Extração finalizada.")
     
-    #webmotors_transform = WebmotorsTransform()
-    #webmotors_transform.run(data)
+    webmotors_transform = WebmotorsTransform()
+    webmotors_transform.run(data)
 
 if __name__ == '__main__':
     warnings.filterwarnings('ignore')

@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import regexp_replace, udf, translate, upper, substring_index, when, col, current_timestamp
-from pyspark.sql.types import StringType, StructField, StructType, FloatType
+from pyspark.sql.types import StringType, StructField, StructType, FloatType, IntegerType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
 import psycopg2.extras as p
@@ -146,6 +146,7 @@ class WebmotorsTransform:
             # todo: load with pyspark dataframe
             pandas_dataframe = data_to_load.toPandas()
             print("[LOG] Conversão para pandas DataFrame")
+            # pandas_dataframe.to_csv("teste.csv")
 
             self.__load_data(pandas_dataframe)
             print("[LOG] Carga concluída")
@@ -173,7 +174,8 @@ class WebmotorsTransform:
         return matching_string, replace_string
 
     def __to_str(self, column):
-        return column.cast(StringType())
+        int_column = column.cast(IntegerType())
+        return int_column.cast(StringType())
 
     def __compute_bool(self, column):
         return when(column.contains("true"), 1).otherwise(0)
