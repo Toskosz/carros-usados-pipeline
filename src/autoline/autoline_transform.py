@@ -118,7 +118,7 @@ class AutolineTransform:
             "CIDADE": [self.__clean_str_column],
             "COR": [self.__clean_str_column],
             "DATA_CRIACAO_AD": [self.__fix_date_type],
-            "QNTD_PORTAS": [self.__clean_str_column,self.__to_number],
+            "QNTD_PORTAS": [self.__clean_str_column, self.__to_number],
             "COMBUSTIVEL": [self.__clean_str_column],
             "BLINDADO": [self.__compute_bool],
             "COLECIONADOR": [self.__compute_bool],
@@ -153,9 +153,11 @@ class AutolineTransform:
         }
 
     def __to_number(self, column):
-        return when(column.startswith("ZERO"), "0").when(column.startswith("UM"), "1").when(column.startswith("DOIS"), "2").when(column.startswith("TRES"), "3") \
-        .when(column.startswith("QUATRO"), "4").when(column.startswith("CINCO"), "5").when(column.startswith("SEIS"), "6").when(column.startswith("SETE"), "7") \
-        .when(column.startswith("OITO"), "8").when(column.startswith("NOVE"), "9").when(column.startswith("DEZ"), "10")
+        return when(column.contains("ZERO"), "0").when(column.contains("UM"), "1")\
+            .when(column.contains("DOIS"), "2").when(column.contains("TRES"), "3")\
+            .when(column.contains("QUATRO"), "4").when(column.contains("CINCO"), "5")\
+            .when(column.contains("SEIS"), "6").when(column.contains("SETE"), "7")\
+            .when(column.contains("OITO"), "8").when(column.contains("NOVE"), "9").otherwise("0")
 
     def __to_float(self, column):
         return column.cast(FloatType())
@@ -164,10 +166,10 @@ class AutolineTransform:
         return column.cast(StringType())
 
     def __compute_bool(self, column):
-        return when(column.startswith("VERDADEIRO"), 1).when(column.startswith("FALSO"), 0)
-
+        return when(column.contains("VERDADEIRO"), 1).otherwise(0)
+        
     def __compute_inverse_bool(self, column):
-        return when(column.startswith("VERDADEIRO"), 0).when(column.startswith("FALSO"), 1)
+        return when(column.contains("VERDADEIRO"), 0).otherwise(1)
 
     def __fix_date_type(self, column):
         column_fixed = regexp_replace(column, "T", " ")
@@ -227,7 +229,8 @@ class AutolineTransform:
             # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
             # todo: load with pyspark dataframe
             pandas_dataframe = data_to_load.toPandas()
-            # pandas_dataframe.to_csv("teste")
+            print("[LOG] Conversão para pandas DataFrame")
+            pandas_dataframe.to_csv("teste.csv")
             # Possivel solução
             # pandas_dataframe['DATA_CRIACAO_AD'] = pandas_dataframe['DATA_CRIACAO_AD'].replace({np.NaN: None})
 
@@ -237,8 +240,8 @@ class AutolineTransform:
             self.spark.stop()
         except Exception as E:
             print("[ERRO] O seguinte erro interrompeu o processo:")
-            print(E)
             self.spark.stop()
+            raise(E)
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
