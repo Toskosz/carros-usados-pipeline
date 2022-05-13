@@ -1,24 +1,69 @@
-from os import listdir
-from os.path import isfile, join
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper
-import datetime
-import ast
-import numpy as np
+from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper, when, col, current_timestamp
+from pyspark.sql.types import StringType, StructField, StructType, FloatType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
 import psycopg2.extras as p
-import unidecode
-from pyspark.sql.types import StringType
 import unicodedata
 import sys
+import numpy as np
+from sqlalchemy import column, create_engine, table
 
 class AutolineTransform:
 
     def __init__(self) -> None:
-        self.files_path = "raw/autoline/"
         self.spark = SparkSession.builder.appName("autoline transformation").getOrCreate()
         self.matching_string, self.replace_string = self.__make_trans()
+        
+        self.schema = StructType([
+            StructField("AD_ID", StringType(), True),
+            StructField("INFORMACOES_ADICIONAIS", StringType(), True),
+            StructField("CORPO_VEICULO", StringType(), True),
+            StructField("ANO_FABRICACAO", StringType(), True),
+            StructField("CIDADE", StringType(), True),
+            StructField("COR", StringType(), True),
+            StructField("DATA_CRIACAO_AD", StringType(), True),
+            StructField("QNTD_PORTAS", StringType(), True),
+            StructField("EMAIL", StringType(), True),
+            StructField("MOTOR", StringType(), True),
+            StructField("RECURSOS", StringType(), True),
+            StructField("COMBUSTIVEL", StringType(), True),
+            StructField("BLINDADO", StringType(), True),
+            StructField("COLECIONADOR", StringType(), True),
+            StructField("ADAPTADO_DEFICIENCIA", StringType(), True),
+            StructField("FINANCIAVEL", StringType(), True),
+            StructField("FINANCIADO", StringType(), True),
+            StructField("GARANTIA_DE_FABRICA", StringType(), True),
+            StructField("DONO_UNICO", StringType(), True),
+            StructField("QUITADO", StringType(), True),
+            StructField("REGISTRAMENTO_PAGO", StringType(), True),
+            StructField("VENDEDOR_PJ", StringType(), True),
+            StructField("ACEITA_TROCA", StringType(), True),
+            StructField("IMPOSTOS_PAGOS", StringType(), True),
+            StructField("KILOMETRAGEM", StringType(), True),
+            StructField("LINK_AD", StringType(), True),
+            StructField("FABRICANTE", StringType(), True),
+            StructField("CELULAR", StringType(), True),
+            StructField("MODELO", StringType(), True),
+            StructField("ANO_MODELO", StringType(), True),
+            StructField("BAIRRO", StringType(), True),
+            StructField("TELEFONE", StringType(), True),
+            StructField("PRECO", FloatType(), True),
+            StructField("PRECO_FIPE", StringType(), True),
+            StructField("PLACA", StringType(), True),
+            StructField("COR_SECUNDARIA", StringType(), True),
+            StructField("TIPO_VEICULO", StringType(), True),
+            StructField("ENDERECO", StringType(), True),
+            StructField("COMPLEMENTO_ENDERECO", StringType(), True),
+            StructField("DOCUMENTO_VENDEDOR", StringType(), True),
+            StructField("NOME_VENDEDOR", StringType(), True),
+            StructField("UF", StringType(), True),
+            StructField("ESTADO", StringType(), True),
+            StructField("TRANSMISSAO", StringType(), True),
+            StructField("TIPO_VENDEDOR", StringType(), True),
+            StructField("VERSAO", StringType(), True),
+            StructField("WHATSAPP", StringType(), True)
+        ])
 
         self.dummy_columns = {
             'Ar Condicionado':'AR_CONDICIONADO',
@@ -67,14 +112,13 @@ class AutolineTransform:
         }
 
         self.columns_func_assigns = {
-            "INFORMACOES_ADICIONAIS": [self.__clean_str_column, self.__remove_jump_line],
+            "INFORMACOES_ADICIONAIS": [self.__remove_jump_line],    #self.__clean_str_column, 
             "CORPO_VEICULO": [self.__clean_str_column],
             "ANO_FABRICACAO": [self.__to_str],
             "CIDADE": [self.__clean_str_column],
             "COR": [self.__clean_str_column],
-            "DATA_ATUALIZACAO_AUTOLINE": [self.__fix_date_type],
             "DATA_CRIACAO_AD": [self.__fix_date_type],
-            "QNTD_PORTAS": [self.__clean_str_column,self.__to_number],
+            "QNTD_PORTAS": [self.__clean_str_column, self.__to_number],
             "COMBUSTIVEL": [self.__clean_str_column],
             "BLINDADO": [self.__compute_bool],
             "COLECIONADOR": [self.__compute_bool],
@@ -82,14 +126,12 @@ class AutolineTransform:
             "FINANCIAVEL": [self.__compute_bool],
             "FINANCIADO": [self.__compute_bool],
             "GARANTIA_DE_FABRICA": [self.__compute_bool],
-            "NOVO": [self.__compute_bool],
             "DONO_UNICO": [self.__compute_bool],
             "QUITADO": [self.__compute_bool],
             "REGISTRAMENTO_PAGO": [self.__compute_bool],
             "VENDEDOR_PJ": [self.__compute_bool],
             "ACEITA_TROCA": [self.__compute_inverse_bool],
             "IMPOSTOS_PAGOS": [self.__compute_bool],
-            "ZEROKM": [self.__clean_str_column],
             "KILOMETRAGEM": [self.__to_float],
             "FABRICANTE": [self.__clean_str_column],
             "MODELO": [self.__clean_str_column],
@@ -97,7 +139,6 @@ class AutolineTransform:
             "BAIRRO": [self.__clean_str_column],
             "PRECO": [self.__to_float],
             "PRECO_FIPE": [],
-            "DATA_DE_REGISTRO": [self.__fix_date_type],
             "COR_SECUNDARIA": [self.__clean_str_column],
             "TIPO_VEICULO": [self.__clean_str_column],
             "ENDERECO": [self.__clean_str_column],
@@ -108,43 +149,38 @@ class AutolineTransform:
             "ESTADO": [self.__clean_str_column],
             "TRANSMISSAO": [self.__clean_str_column],
             "TIPO_VENDEDOR": [self.__clean_str_column],
-            "DATA_ATT_AD": [self.__fix_date_type],
             "VERSAO": [self.__clean_str_column],
         }
 
-    def __to_number(column):
-        doorsDict = {'ZERO':'0','UM':'1','DOIS':'2','TRES':'3','QUATRO':'4','CINCO':'5','SEIS':'6',
-        'SETE':'7', 'OITO':'8', 'NOVE':'9', 'DEZ':'10'}
+    def __to_number(self, column):
+        return when(column.contains("ZERO"), "0").when(column.contains("UM"), "1")\
+            .when(column.contains("DOIS"), "2").when(column.contains("TRES"), "3")\
+            .when(column.contains("QUATRO"), "4").when(column.contains("CINCO"), "5")\
+            .when(column.contains("SEIS"), "6").when(column.contains("SETE"), "7")\
+            .when(column.contains("OITO"), "8").when(column.contains("NOVE"), "9").otherwise("0")
 
-        map_func = udf(lambda row : doorsDict.get(row,row))
-        return map_func(column)
+    def __to_float(self, column):
+        return column.cast(FloatType())
 
-    def __to_float(column):
-        return column.cast('float')
-
-    def __to_str(column):
+    def __to_str(self, column):
         return column.cast(StringType())
 
-    def __compute_bool(column):
-        boolDict = {'VERDADEIRO':1,'FALSO':0}
+    def __compute_bool(self, column):
+        return when(column.contains("VERDADEIRO"), 1).otherwise(0)
+        
+    def __compute_inverse_bool(self, column):
+        return when(column.contains("VERDADEIRO"), 0).otherwise(1)
 
-        map_func = udf(lambda row : boolDict.get(row,row))
-        return map_func(column)
-
-    def __compute_inverse_bool(column):
-        boolDict = {'VERDADEIRO':0,'FALSO':1}
-
-        map_func = udf(lambda row : boolDict.get(row,row))
-        return map_func(column)
-
-    def __fix_date_type(column):
+    def __fix_date_type(self, column):
         column_fixed = regexp_replace(column, "T", " ")
-        return to_timestamp(column_fixed, 'yyyy-MM-dd HH:mm:ss')
+        column_with_nat = to_timestamp(column_fixed, 'yyyy-MM-dd HH:mm:ss')
+        column_result = regexp_replace(column_with_nat, "NaT", "NULL")
+        return column_result
 
-    def __remove_jump_line(column):
+    def __remove_jump_line(self, column):
         return regexp_replace(column, "\\n", "")
 
-    def __make_trans():
+    def __make_trans(self):
         matching_string = ""
         replace_string = ""
 
@@ -164,255 +200,53 @@ class AutolineTransform:
         normalized_column = translate(regexp_replace(c, "\p{M}", ""), self.matching_string, self.replace_string)
         return upper(normalized_column)
 
-    def __get_last_file(self):
-        # get all csv files
-        files = {f.removesuffix(".csv") : datetime.strptime(f.removesuffix(".csv"), '%Y%m%d%H') for f in listdir(self.files_path) if isfile(join(self.files_path, f))}
-        # latest file
-        return max(files, key=files.get)
+    def run(self, default_dataframe) -> None:
+        try:
+            data = self.spark.createDataFrame(default_dataframe, schema=self.schema)
+            
+            print("[LOG] Dataframe criado")
 
-    # verifies if dummy column exists in the row recursos
-    def __has_att(original_name,atts_recursos):
-        recursos = atts_recursos.replace('[', '')
-        recursos = recursos.replace(']', '')
+            for original_name, column_name in self.dummy_columns.items():
+                data = data.withColumn(column_name, when((col("RECURSOS").contains(original_name)), 1).otherwise(0))
 
-        # string representation of dicts to actual list of dicts
-        recursos_dict = ast.literal_eval(recursos)
+            # drop atributos and optionals column
+            data_to_type_compute = data.drop("RECURSOS")
 
-        for recurso_dict in recursos_dict:
-            for _, recurso_desc in recurso_dict.items():
-                if original_name == recurso_desc:
-                    return 1
+            print("[LOG] Colunas desnecessárias dropadas")
 
-        return 0
+            # types, string cleaning, computes special columns
+            for coluna, lst_f in self.columns_func_assigns.items():
+                for f in lst_f:
+                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
 
-    def run(self, last_file=None) -> None:
-        if not last_file:
-            last_file = self.__get_last_file()
+            # fills na values and creates DATA_CARGA column with datetime of load
+            data_to_load = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
 
-        data = self.spark.read.csv(self.files_path + last_file + ".csv", header=True)
-        
-        for original_name, column_name in self.dummy_columns:
-            data = data.withColumn(column_name, self.__has_att(original_name, data.RECURSOS))
+            print("[LOG] Transformações feitas")
 
-        # drop atributos and optionals column
-        data_to_type_compute = data.drop("RECURSOS")
+            # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
+            pandas_dataframe = data_to_load.toPandas()
+            print("[LOG] Conversão para pandas DataFrame")
+            # pandas_dataframe.to_csv("teste.csv")
 
-        # types, string cleaning, computes special columns
-        for coluna, lst_f in self.columns_func_assigns.items():
-            for f in lst_f:
-                data_to_type_compute = data_to_type_compute.withColumn(coluna, f(data[coluna]))
+            self.__load_data(pandas_dataframe)
+            print("[LOG] Carga concluída")
 
-        # fills na values and creates DATA_CARGA column with datetime of load
-        data_filled_na = data_to_type_compute.na.fill("INDISPONIVEL")
-        data_to_load = data_filled_na.withColumn("DATA_CARGA", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
-
-        # Uses pandas dataframe to make the load because i cant do it with
-        # pyspark at the moment
-        # todo: load with pyspark dataframe
-        pandas_dataframe = data_to_load.toPandas()
-
-        self.__load_data(pandas_dataframe.values)
-        
-        self.spark.stop()
+            self.spark.stop()
+        except Exception as E:
+            print("[ERRO] O seguinte erro interrompeu o processo:")
+            self.spark.stop()
+            raise(E)
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
-            p.execute_batch(curr, self.__get_exchange_insert_query(), data)
+            p.execute_batch(curr, self.__get_exchange_insert_query(data,"stg.autoline"), data.values)
 
-    def __get_exchange_insert_query() -> str:
-        return '''
-        INSERT INTO STG.AUTOLINE (
-            AD_ID,
-            INFORMACOES_ADICIONAIS,
-            CORPO_VEICULO,
-            ANO_FABRICACAO,
-            CIDADE,
-            COR,
-            DATA_ATUALIZACAO_AUTOLINE,
-            DATA_CRIACAO_AD,
-            QNTD_PORTAS,
-            EMAIL,
-            MOTOR,
-            COMBUSTIVEL,
-            BLINDADO,
-            COLECIONADOR,
-            ADAPTADO_DEFICIENCIA,
-            FINANCIAVEL,
-            FINANCIADO,
-            GARANTIA_DE_FABRICA,
-            NOVO,
-            DONO_UNICO,
-            QUITADO,
-            REGISTRAMENTO_PAGO,
-            VENDEDOR_PJ,
-            NAO_ACEITA_TROCA,
-            IMPOSTOS_PAGOS,
-            ZEROKM,
-            KILOMETRAGEM,
-            LINK_AD,
-            FABRICANTE,
-            CELULAR,
-            MODELO,
-            ANO_MODELO,
-            BAIRRO,
-            TELEFONE,
-            PRECO,
-            PRECO_FIPE,
-            DATA_DE_REGISTRO,
-            PLACA,
-            COR_SECUNDARIA,
-            TIPO_VEICULO,
-            ENDERECO,
-            COMPLEMENTO_ENDERECO,
-            DOCUMENTO_VENDEDOR,
-            NOME_VENDEDOR,
-            UF,
-            ESTADO,
-            TRANSMISSAO,
-            TIPO_VENDEDOR,
-            DATA_ATT_AD,
-            VERSAO,
-            WHATSAPP,
-            AR_CONDICIONADO,
-            TETO_SOLAR,
-            BANCO_DE_COURO,
-            ALARME,
-            FREIO_ABS,
-            SENSOR_DE_ESTACIONAMENTO,
-            COMPUTAR_DE_BORDO,
-            AIRBAG,
-            AR_QUENTE,
-            RODAS_LIGA_LEVE,
-            AIRBAG_DUPLO,
-            VOLANTE_REG_ALTURA,
-            FAROL_DE_MILHA,
-            BANCO_REGULA_ALTURA,
-            MP3_CD_PLAYER,
-            VIDROS_ELETRICOS,
-            TRAVAS_ELETRICAS,
-            DESEMBACADOR_TRASEIRO,
-            DIR_HIDRAULICA,
-            RETROVISOR_ELETRICO,
-            LIMPADOR_TRASEIRO,
-            ENCOSTO_CABECA_TRASEIRO,
-            DIR_ELETRICA,
-            RADIO,
-            KIT_MULTIMIDIA,
-            CONTROLE_TRACAO,
-            CONTROLE_AUTOMATICO_VEL,
-            GPS,
-            CD_PLAYER,
-            FAROL_NEBLINA,
-            RETROVISOR_FOTOCROMICO,
-            SENSOR_DE_CHUVA,
-            TRACAO_QUATRO_POR_QUATRO,
-            PILOTO_AUTOMATICO,
-            PROTETOR_CACAMBA,
-            CAPOTA_MARITIMA,
-            DVD_PLAYER,
-            FAROL_DE_XENONIO,
-            BANCO_COM_AQUECIMENTO,
-            RADIO_TOCAFITA,
-            DISQUETEIRA,
-            ESCAPAMENTO_ESPORTIVO,
-            FREIO_ABS,
-            DATA_CARGA
-        )
-        VALUES (
-            %(AD_ID)s,
-            %(INFORMACOES_ADICIONAIS)s,
-            %(CORPO_VEICULO)s,
-            %(ANO_FABRICACAO)s,
-            %(CIDADE)s,
-            %(COR)s,
-            %(DATA_ATUALIZACAO_AUTOLINE)s,
-            %(DATA_CRIACAO_AD)s,
-            %(QNTD_PORTAS)s,
-            %(EMAIL)s,
-            %(MOTOR)s,
-            %(COMBUSTIVEL)s,
-            %(BLINDADO)s,
-            %(COLECIONADOR)s,
-            %(ADAPTADO_DEFICIENCIA)s,
-            %(FINANCIAVEL)s,
-            %(FINANCIADO)s,
-            %(GARANTIA_DE_FABRICA)s,
-            %(NOVO)s,
-            %(DONO_UNICO)s,
-            %(QUITADO)s,
-            %(REGISTRAMENTO_PAGO)s,
-            %(VENDEDOR_PJ)s,
-            %(NAO_ACEITA_TROCA)s,
-            %(IMPOSTOS_PAGOS)s,
-            %(ZEROKM)s,
-            %(KILOMETRAGEM)s,
-            %(LINK_AD)s,
-            %(FABRICANTE)s,
-            %(CELULAR)s,
-            %(MODELO)s,
-            %(ANO_MODELO)s,
-            %(BAIRRO)s,
-            %(TELEFONE)s,
-            %(PRECO)s,
-            %(PRECO_FIPE)s,
-            %(DATA_DE_REGISTRO)s,
-            %(PLACA)s,
-            %(COR_SECUNDARIA)s,
-            %(TIPO_VEICULO)s,
-            %(ENDERECO)s,
-            %(COMPLEMENTO_ENDERECO)s,
-            %(DOCUMENTO_VENDEDOR)s,
-            %(NOME_VENDEDOR)s,
-            %(UF)s,
-            %(ESTADO)s,
-            %(TRANSMISSAO)s,
-            %(TIPO_VENDEDOR)s,
-            %(DATA_ATT_AD)s,
-            %(VERSAO)s,
-            %(WHATSAPP)s,
-            %(AR_CONDICIONADO)s,
-            %(TETO_SOLAR)s,
-            %(BANCO_DE_COURO)s,
-            %(ALARME)s,
-            %(FREIO_ABS)s,
-            %(SENSOR_DE_ESTACIONAMENTO)s,
-            %(COMPUTAR_DE_BORDO)s,
-            %(AIRBAG)s,
-            %(AR_QUENTE)s,
-            %(RODAS_LIGA_LEVE)s,
-            %(AIRBAG_DUPLO)s,
-            %(VOLANTE_REG_ALTURA)s,
-            %(FAROL_DE_MILHA)s,
-            %(BANCO_REGULA_ALTURA)s,
-            %(MP3_CD_PLAYER)s,
-            %(VIDROS_ELETRICOS)s,
-            %(TRAVAS_ELETRICAS)s,
-            %(DESEMBACADOR_TRASEIRO)s,
-            %(DIR_HIDRAULICA)s,
-            %(RETROVISOR_ELETRICO)s,
-            %(LIMPADOR_TRASEIRO)s,
-            %(ENCOSTO_CABECA_TRASEIRO)s,
-            %(DIR_ELETRICA)s,
-            %(RADIO)s,
-            %(KIT_MULTIMIDIA)s,
-            %(CONTROLE_TRACAO)s,
-            %(CONTROLE_AUTOMATICO_VEL)s,
-            %(GPS)s,
-            %(CD_PLAYER)s,
-            %(FAROL_NEBLINA)s,
-            %(RETROVISOR_FOTOCROMICO)s,
-            %(SENSOR_DE_CHUVA)s,
-            %(TRACAO_QUATRO_POR_QUATRO)s,
-            %(PILOTO_AUTOMATICO)s,
-            %(PROTETOR_CACAMBA)s,
-            %(CAPOTA_MARITIMA)s,
-            %(DVD_PLAYER)s,
-            %(FAROL_DE_XENONIO)s,
-            %(BANCO_COM_AQUECIMENTO)s,
-            %(RADIO_TOCAFITA)s,
-            %(DISQUETEIRA)s,
-            %(ESCAPAMENTO_ESPORTIVO)s,
-            %(FREIO_ABS)s,
-            %(DATA_CARGA)s
-        );
-        '''
+    def __get_exchange_insert_query(self,df,table) -> str:
+        df_columns = list(df)
+        columns = ", ".join(df_columns)
+
+        values = "VALUES ({})".format(", ".join(["%s" for _ in df_columns]))
+        insert_stmt = "INSERT INTO {} ({}) {}".format(table, columns, values)
+        
+        return insert_stmt

@@ -1,7 +1,6 @@
 import requests
 import pandas as pd
 from datetime import datetime
-import time
 from time import sleep
 import unidecode
 
@@ -22,11 +21,11 @@ class WebmotorsExtract:
             'User-Agent':	'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0'
         }
 
-    def run(self, max_batch_size) -> None:
+    def run(self, max_batch_size):
         data = self.__get_recent_cars(max_batch_size)
-        now = datetime.now()
-        str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
-        data.to_csv('raw/webmotors/'+str_hora+'.csv',index=False)
+        # now = datetime.now()
+        # str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
+        # data.to_csv('raw/webmotors/'+str_hora+'.csv',index=False)
         return data
 
 #   Extraction part
@@ -67,7 +66,6 @@ class WebmotorsExtract:
         tmp_row['ESTADO_VENDEDOR'] = vendedor['State']
 
         tmp_row['TIPO_ANUNCIO'] = vendedor['AdType']['Value']
-        tmp_row['SCORE_VENDEDOR'] = vendedor['DealerScore']
         tmp_row['ENTREGA_CARRO'] = vendedor['CarDelivery']
         tmp_row['TROCA_COM_TROCO'] = vendedor['TrocaComTroco']
 
@@ -150,7 +148,7 @@ class WebmotorsExtract:
     def __get_recent_cars(self, max_batch_size) -> pd.DataFrame:
         # DataFrame for batching
         carros_webmotors = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
-        'ATRIBUTOS','BLINDADO','COR','TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','TIPO_ANUNCIO','SCORE_VENDEDOR','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO',
+        'ATRIBUTOS','BLINDADO','COR','TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','TIPO_ANUNCIO','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO',
         'PORCENTAGEM_FIPE','OPTIONALS','COMBUSTIVEL'])
 
         contador = 1
