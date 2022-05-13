@@ -126,7 +126,7 @@ class WebmotorsTransform:
             # drop atributos and optionals column
             data_with_dummy_columns = data.drop("ATRIBUTOS","OPTIONALS")
 
-            print("[LOG] Colunas dropadas")
+            print("[LOG] Colunas desnecessárias dropadas")
 
             # separation of UF and ESTADO from ESTADO column
             data_with_uf = data_with_dummy_columns.withColumn("UF_VENDEDOR", self.__compute_UF(data_with_dummy_columns.ESTADO_VENDEDOR))
@@ -145,15 +145,16 @@ class WebmotorsTransform:
             # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
             # todo: load with pyspark dataframe
             pandas_dataframe = data_to_load.toPandas()
+            print("[LOG] Conversão para pandas DataFrame")
 
-            self.__load_data(pandas_dataframe.values)
+            self.__load_data(pandas_dataframe)
             print("[LOG] Carga concluída")
 
             self.spark.stop()
         except Exception as E:
             print("[ERRO] O seguinte erro interrompeu o processo:")
-            print(E)
             self.spark.stop()
+            raise(E)
 
     def __make_trans(self):
         matching_string = ""
@@ -175,13 +176,10 @@ class WebmotorsTransform:
         return column.cast(StringType())
 
     def __compute_bool(self, column):
-        boolDict = {'true':1,'false':0}
-
-        map_func = udf(lambda row : boolDict.get(row,row))
-        return map_func(column)
+        return when(column.contains("true"), 1).otherwise(0)
 
     def __to_float(self, column):
-        return column.cast('float')
+        return column.cast(FloatType())
 
     # removes special characters and uppercase it
     def __clean_str_column(self, column):
@@ -189,16 +187,13 @@ class WebmotorsTransform:
         return upper(normalized_column)
 
     # computes column BLINDADO
-    def __compute_BLINDADO(self, blindado_column):
-        boolDict = {'S':1,'N':0}
-
-        map_func = udf(lambda row : boolDict.get(row,row))
-        return map_func(blindado_column)
+    def __compute_BLINDADO(self, column):
+        return when(column.contains("S"), 1).otherwise(0)
 
     # separates the ESTADO_VENDEDOR into two colums, ESTADO_VENDEDOR and UF_VENDEDOR
     def __compute_UF(self, estados):
         estados_tmp = substring_index(estados, '(', -1) # DF)
-        estados_tmp = substring_index(estados, ')', 1) # DF
+        estados_tmp = substring_index(estados_tmp, ')', 1) # DF
         return estados_tmp
 
     # computes new estado values without uf
@@ -208,150 +203,13 @@ class WebmotorsTransform:
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
-            p.execute_batch(curr, self.__get_exchange_insert_query(), data)
+            p.execute_batch(curr, self.__get_exchange_insert_query(data,"stg.webmotors"), data.values)
 
-    def __get_exchange_insert_query(self) -> str:
-        return '''
-        INSERT INTO STG.WEBMOTORS (
-            AD_ID,
-            TITULO,
-            FABRICANTE,
-            MODELO,
-            VERSAO,
-            ANO_FABRICACAO,
-            ANO_MODELO,
-            KILOMETRAGEM,
-            TRANSMISSAO,
-            QNTD_PORTAS,
-            CORPO_VEICULO,
-            ACEITA_TROCA,
-            ALIENADO,
-            GARANTIA_DE_FABRICA,
-            IPVA_PAGO,
-            LICENCIADO,
-            REVISOES_PELA_AGENDA_CARRO,
-            REVISOES_PELA_CONCESSIONARIA,
-            UNICO_DONO,
-            BLINDADO,
-            COR,
-            TIPO_VENDEDOR,
-            CIDADE_VENDEDOR,
-            ESTADO_VENDEDOR,
-            UF_VENDEDOR,
-            TIPO_ANUNCIO,
-            ENTREGA_CARRO,
-            TROCA_COM_TROCO,
-            PRECO,
-            PRECO_DESEJADO,
-            COMENTARIO_DONO,
-            PORCENTAGEM_FIPE,
-            AIRBAG,
-            ALARME,
-            AR_CONDICIONADO,
-            AR_QUENTE,
-            BANCO_REGULA_ALTURA,
-            BANCO_COM_AQUECIMENTO,
-            BANCO_DE_COURO,
-            CAPOTA_MARITIMA,
-            MP3_CD_PLAYER,
-            CD_PLAYER,
-            COMPUTAR_DE_BORDO,
-            CONTROLE_AUTOMATICO_VEL,
-            CONTROLE_TRACAO,
-            DESEMBACADOR_TRASEIRO,
-            DIR_HIDRAULICA,
-            DISQUETEIRA,
-            DVD_PLAYER,
-            ENCOSTO_CABECA_TRASEIRO,
-            FAROL_DE_XENONIO,
-            FREIO_ABS,
-            GPS,
-            LIMPADOR_TRASEIRO,
-            PROTETOR_CACAMBA,
-            RADIO,
-            RADIO_TOCAFITA,
-            RETROVISOR_FOTOCROMICO,
-            RETROVISOR_ELETRICO,
-            RODAS_LIGA_LEVE,
-            SENSOR_DE_CHUVA,
-            SENSOR_DE_ESTACIONAMENTO,
-            TETO_SOLAR,
-            TRACAO_QUATRO_POR_QUATRO,
-            TRAVAS_ELETRICAS,
-            VIDROS_ELETRICOS,
-            VOLANTE_REG_ALTURA,
-            COMBUSTIVEL,
-            DATA_CARGA
-        )
-        VALUES (
-            %(AD_ID)s,
-            %(TITULO)s,
-            %(FABRICANTE)s,
-            %(MODELO)s,
-            %(VERSAO)s,
-            %(ANO_FABRICACAO)s,
-            %(ANO_MODELO)s,
-            %(KILOMETRAGEM)s,
-            %(TRANSMISSAO)s,
-            %(QNTD_PORTAS)s,
-            %(CORPO_VEICULO)s,
-            %(ACEITA_TROCA)s,
-            %(ALIENADO)s,
-            %(GARANTIA_DE_FABRICA)s,
-            %(IPVA_PAGO)s,
-            %(LICENCIADO)s,
-            %(REVISOES_PELA_AGENDA_CARRO)s,
-            %(REVISOES_PELA_CONCESSIONARIA)s,
-            %(UNICO_DONO)s,
-            %(BLINDADO)s,
-            %(COR)s,
-            %(TIPO_VENDEDOR)s,
-            %(CIDADE_VENDEDOR)s,
-            %(ESTADO_VENDEDOR)s,
-            %(UF_VENDEDOR)s,
-            %(AD_TYPE)s,
-            %(ENTREGA_CARRO)s,
-            %(TROCA_COM_TROCO)s,
-            %(PRECO)s,
-            %(PRECO_DESEJADO)s,
-            %(COMENTARIO_DONO)s,
-            %(PORCENTAGEM_FIPE)s,
-            %(AIRBAG)s,
-            %(ALARME)s,
-            %(AR_CONDICIONADO)s,
-            %(AR_QUENTE)s,
-            %(BANCO_REGULA_ALTURA)s,
-            %(BANCO_COM_AQUECIMENTO)s,
-            %(BANCO_DE_COURO)s,
-            %(CAPOTA_MARITIMA)s,
-            %(MP3_CD_PLAYER)s,
-            %(CD_PLAYER)s,
-            %(COMPUTAR_DE_BORDO)s,
-            %(CONTROLE_AUTOMATICO_VEL)s,
-            %(CONTROLE_TRACAO)s,
-            %(DESEMBACADOR_TRASEIRO)s,
-            %(DIR_HIDRAULICA)s,
-            %(DISQUETEIRA)s,
-            %(DVD_PLAYER)s,
-            %(ENCOSTO_CABECA_TRASEIRO)s,
-            %(FAROL_DE_XENONIO)s,
-            %(FREIO_ABS)s,
-            %(GPS)s,
-            %(LIMPADOR_TRASEIRO)s,
-            %(PROTETOR_CACAMBA)s,
-            %(RADIO)s,
-            %(RADIO_TOCAFITA)s,
-            %(RETROVISOR_FOTOCROMICO)s,
-            %(RETROVISOR_ELETRICO)s,
-            %(RODAS_LIGA_LEVE)s,
-            %(SENSOR_DE_CHUVA)s,
-            %(SENSOR_DE_ESTACIONAMENTO)s,
-            %(TETO_SOLAR)s,
-            %(TRACAO_QUATRO_POR_QUATRO)s,
-            %(TRAVAS_ELETRICAS)s,
-            %(VIDROS_ELETRICOS)s,
-            %(VOLANTE_REG_ALTURA)s,
-            %(COMBUSTIVEL)s,
-            %(DATA_CARGA)s
-        )ON CONFLICT DO NOTHING;
-        '''
+    def __get_exchange_insert_query(self,df,table) -> str:
+        df_columns = list(df)
+        columns = ", ".join(df_columns)
+
+        values = "VALUES ({})".format(", ".join(["%s" for _ in df_columns]))
+        insert_stmt = "INSERT INTO {} ({}) {}".format(table, columns, values)
+        
+        return insert_stmt
