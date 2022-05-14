@@ -5,3 +5,4 @@ src/__pycache__
 src/autoline/__pycache__
 src/webmotors/__pycache__
 *.pyc
+src/autoline/__pycache__/autoline_extract.cpython-39.pyc
