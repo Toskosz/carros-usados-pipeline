@@ -166,10 +166,10 @@ class AutolineTransform:
         return column.cast(StringType())
 
     def __compute_bool(self, column):
-        return when(column.contains("VERDADEIRO"), 1).otherwise(0)
+        return when(column.contains("VERDADEIRO"), '1').otherwise('0')
         
     def __compute_inverse_bool(self, column):
-        return when(column.contains("VERDADEIRO"), 0).otherwise(1)
+        return when(column.contains("VERDADEIRO"), '0').otherwise('1')
 
     def __fix_date_type(self, column):
         column_fixed = regexp_replace(column, "T", " ")
@@ -207,7 +207,7 @@ class AutolineTransform:
             print("[LOG] Dataframe criado")
 
             for original_name, column_name in self.dummy_columns.items():
-                data = data.withColumn(column_name, when((col("RECURSOS").contains(original_name)), 1).otherwise(0))
+                data = data.withColumn(column_name, when((col("RECURSOS").contains(original_name)), '1').otherwise('0'))
 
             # drop atributos and optionals column
             data_to_type_compute = data.drop("RECURSOS")
