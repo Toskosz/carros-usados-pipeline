@@ -1,5 +1,5 @@
 import unittest
-from src.webmotors.webmotors_etl import WebmotorsExtract
+from src.webmotors.webmotors_extract import WebmotorsExtract
  
 # comando de rodar testes
 # python -m unittest discover <test_directory>
