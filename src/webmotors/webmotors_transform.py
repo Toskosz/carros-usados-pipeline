@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, udf, translate, upper, substring_index, when, col, current_timestamp
+from pyspark.sql.functions import regexp_replace, udf, translate, upper, substring_index, when, col, current_timestamp, lit
 from pyspark.sql.types import StringType, StructField, StructType, FloatType, IntegerType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
@@ -138,7 +138,8 @@ class WebmotorsTransform:
                     data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
 
             # creates DATA_CARGA column with datetime of load
-            data_to_load = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
+            tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
+            data_to_load = tmp_data.withColumn("WEBSITE", lit("WEBMOTORS"))
 
             print("[LOG] Transformações feitas")
 
