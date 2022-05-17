@@ -8,6 +8,9 @@ down:
 shell:
 	docker exec -ti pipelinerunner bash
 
+wh-shell:
+	docker exec -ti warehouse bash
+
 pytest:
 	docker exec pipelinerunner python -m unittest discover /code/test
 
