@@ -8,9 +8,9 @@ import warnings
 def run() -> None:
     try:
         autoline_extract = AutolineExtract()
-        print("Extração inicializada.")
+        print("[LOG] Extração inicializada.")
         data = autoline_extract.run(20)
-        print("Extração finalizada.")
+        print("[LOG] Extração finalizada.")
 
         autoline_transform = AutolineTransform()
         autoline_transform.run(data)
