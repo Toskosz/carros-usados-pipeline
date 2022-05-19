@@ -239,6 +239,7 @@ class AutolineTransform:
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
+            curr.execute('truncate table stg.autoline')
             p.execute_batch(curr, self.__get_exchange_insert_query(data,"stg.autoline"), data.values)
 
     def __get_exchange_insert_query(self,df,table) -> str:
