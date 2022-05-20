@@ -139,7 +139,9 @@ class WebmotorsTransform:
 
             # creates DATA_CARGA column with datetime of load
             tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
-            data_to_load = tmp_data.withColumn("WEBSITE", lit("WEBMOTORS"))
+            data_with_na = tmp_data.withColumn("WEBSITE", lit("WEBMOTORS"))
+
+            data_to_load = data_with_na.na.fill("INDISPONIVEL").na.fill(False).na.fill(0.0)
 
             print("[LOG] Transformações feitas")
 

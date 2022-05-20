@@ -150,6 +150,47 @@ class AutolineTransform:
             "VERSAO": [self.__clean_str_column],
         }
 
+    def run(self, default_dataframe) -> None:
+        try:
+            data = self.spark.createDataFrame(default_dataframe, schema=self.schema)
+            
+            print("[LOG] Dataframe criado")
+
+            for original_name, column_name in self.dummy_columns.items():
+                data = data.withColumn(column_name, when((col("RECURSOS").contains(original_name)), '1').otherwise('0'))
+
+            # drop atributos and optionals column
+            data_to_type_compute = data.drop("RECURSOS")
+
+            print("[LOG] Colunas desnecessárias dropadas")
+
+            # types, string cleaning, computes special columns
+            for coluna, lst_f in self.columns_func_assigns.items():
+                for f in lst_f:
+                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
+
+            # fills na values and creates DATA_CARGA column with datetime of load
+            tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
+            data_with_na = tmp_data.withColumn("WEBSITE", lit("AUTOLINE"))
+
+            print("[LOG] Transformações feitas")
+
+            data_to_load = data_with_na.na.fill("INDISPONIVEL").na.fill(False).na.fill(0.0)
+            
+            # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
+            pandas_dataframe = data_to_load.toPandas()
+            print("[LOG] Conversão para pandas DataFrame")
+            # pandas_dataframe.to_csv("teste.csv")
+
+            self.__load_data(pandas_dataframe)
+            print("[LOG] Carga concluída")
+
+            self.spark.stop()
+        except Exception as E:
+            print("[ERRO] O seguinte erro interrompeu o processo:")
+            self.spark.stop()
+            raise(E)
+
     def __to_number(self, column):
         return when(column.contains("ZERO"), "0").when(column.contains("UM"), "1")\
             .when(column.contains("DOIS"), "2").when(column.contains("TRES"), "3")\
@@ -197,45 +238,6 @@ class AutolineTransform:
     def __clean_str_column(self, c):
         normalized_column = translate(regexp_replace(c, "\p{M}", ""), self.matching_string, self.replace_string)
         return upper(normalized_column)
-
-    def run(self, default_dataframe) -> None:
-        try:
-            data = self.spark.createDataFrame(default_dataframe, schema=self.schema)
-            
-            print("[LOG] Dataframe criado")
-
-            for original_name, column_name in self.dummy_columns.items():
-                data = data.withColumn(column_name, when((col("RECURSOS").contains(original_name)), '1').otherwise('0'))
-
-            # drop atributos and optionals column
-            data_to_type_compute = data.drop("RECURSOS")
-
-            print("[LOG] Colunas desnecessárias dropadas")
-
-            # types, string cleaning, computes special columns
-            for coluna, lst_f in self.columns_func_assigns.items():
-                for f in lst_f:
-                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
-
-            # fills na values and creates DATA_CARGA column with datetime of load
-            tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
-            data_to_load = tmp_data.withColumn("WEBSITE", lit("AUTOLINE"))
-
-            print("[LOG] Transformações feitas")
-
-            # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
-            pandas_dataframe = data_to_load.toPandas()
-            print("[LOG] Conversão para pandas DataFrame")
-            # pandas_dataframe.to_csv("teste.csv")
-
-            self.__load_data(pandas_dataframe)
-            print("[LOG] Carga concluída")
-
-            self.spark.stop()
-        except Exception as E:
-            print("[ERRO] O seguinte erro interrompeu o processo:")
-            self.spark.stop()
-            raise(E)
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
