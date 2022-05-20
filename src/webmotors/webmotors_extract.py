@@ -22,10 +22,12 @@ class WebmotorsExtract:
         }
 
     def run(self, max_batch_size):
+        print("[LOG] Extração inicializada.")
         data = self.__get_recent_cars(max_batch_size)
         # now = datetime.now()
         # str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
         # data.to_csv('raw/webmotors/'+str_hora+'.csv',index=False)
+        print("[LOG] Extração finalizada.")
         return data
 
 #   Extraction part

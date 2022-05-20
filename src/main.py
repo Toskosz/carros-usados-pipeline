@@ -8,18 +8,12 @@ import warnings
 def run() -> None:
     try:
         autoline_extract = AutolineExtract()
-        print("[LOG] Extração inicializada.")
         data = autoline_extract.run(20)
-        print("[LOG] Extração finalizada.")
-
         autoline_transform = AutolineTransform()
         autoline_transform.run(data)
 
         webmotors_extract = WebmotorsExtract()
-        print("[LOG] Extração inicializada.")
         data = webmotors_extract.run(20)
-        print("[LOG] Extração finalizada.")
-        
         webmotors_transform = WebmotorsTransform()
         webmotors_transform.run(data)
     except:
