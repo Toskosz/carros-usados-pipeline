@@ -141,7 +141,10 @@ class WebmotorsTransform:
             tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
             data_with_na = tmp_data.withColumn("WEBSITE", lit("WEBMOTORS"))
 
-            data_to_load = data_with_na.na.fill("INDISPONIVEL").na.fill(False).na.fill(0.0)
+            # fill missing data
+            data_to_load = data_with_na.na.fill("INDISPONIVEL", subset=['TITULO', 'FABRICANTE', 'MODELO', 'VERSAO', 'ANO_FABRICACAO', 'ANO_MODELO', 'TRANSMISSAO', 'QNTD_PORTAS', 'CORPO_VEICULO', 'COR', 'TIPO_VENDEDOR', 'CIDADE_VENDEDOR', 'ESTADO_VENDEDOR', 'UF_VENDEDOR', 'TIPO_ANUNCIO', 'COMENTARIO_DONO', 'COMBUSTIVEL'])
+            data_to_load = data_to_load.na.fill(False, subset=['BLINDADO', 'ENTREGA_CARRO', 'TROCA_COM_TROCO'])
+            data_to_load = data_to_load.na.fill(0.0, subset=['KILOMETRAGEM', 'PRECO', 'PRECO_DESEJADO', 'PORCENTAGEM_FIPE'])
 
             print("[LOG] Transformações feitas")
 
@@ -149,7 +152,6 @@ class WebmotorsTransform:
             # todo: load with pyspark dataframe
             pandas_dataframe = data_to_load.toPandas()
             print("[LOG] Conversão para pandas DataFrame")
-            # pandas_dataframe.to_csv("teste.csv")
 
             self.__load_data(pandas_dataframe)
             print("[LOG] Carga concluída")

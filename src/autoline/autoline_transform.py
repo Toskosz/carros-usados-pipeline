@@ -69,7 +69,7 @@ class AutolineTransform:
             'Teto Solar':'TETO_SOLAR',
             'Bancos em Couro':'BANCO_DE_COURO',
             'Alarme':'ALARME',
-            'Freios ABS':'FREIO_ABS',
+            'ABS':'FREIO_ABS',
             'Sensor de Estacionamento':'SENSOR_DE_ESTACIONAMENTO',
             'Computador de Bordo':'COMPUTAR_DE_BORDO',
             'Air Bag':'AIRBAG',
@@ -107,7 +107,6 @@ class AutolineTransform:
             'Rádio e Toca Fitas':'RADIO_TOCAFITA',
             'Disqueteira':'DISQUETEIRA',
             'Escapamento Esportivo':'ESCAPAMENTO_ESPORTIVO',
-            'ABS':'FREIO_ABS'
         }
 
         self.columns_func_assigns = {
@@ -175,7 +174,9 @@ class AutolineTransform:
 
             print("[LOG] Transformações feitas")
 
-            data_to_load = data_with_na.na.fill("INDISPONIVEL").na.fill(False).na.fill(0.0)
+            data_to_load = data_with_na.na.fill("INDISPONIVEL", subset=['INFORMACOES_ADICIONAIS', 'CORPO_VEICULO', 'ANO_FABRICACAO', 'CIDADE', 'COR', 'QNTD_PORTAS', 'EMAIL', 'MOTOR', 'COMBUSTIVEL', 'LINK_AD', 'FABRICANTE', 'CELULAR', 'MODELO', 'ANO_MODELO', 'BAIRRO', 'TELEFONE', 'PLACA', 'COR_SECUNDARIA', 'TIPO_VEICULO', 'ENDERECO', 'COMPLEMENTO_ENDERECO', 'DOCUMENTO_VENDEDOR', 'NOME_VENDEDOR', 'UF', 'ESTADO', 'TRANSMISSAO', 'TIPO_VENDEDOR', 'VERSAO', 'WHATSAPP'])
+            data_to_load = data_to_load.na.fill(False, subset=['BLINDADO','COLECIONADOR','ADAPTADO_DEFICIENCIA','FINANCIAVEL','FINANCIADO','GARANTIA_DE_FABRICA','DONO_UNICO','QUITADO','REGISTRAMENTO_PAGO','VENDEDOR_PJ','ACEITA_TROCA','IMPOSTOS_PAGOS'])
+            data_to_load = data_to_load.na.fill(0.0, subset=['KILOMETRAGEM','PRECO','PRECO_FIPE'])
             
             # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
             pandas_dataframe = data_to_load.toPandas()
