@@ -16,8 +16,8 @@ def run() -> None:
         data = webmotors_extract.run(20)
         webmotors_transform = WebmotorsTransform()
         webmotors_transform.run(data)
-    except:
-        notify_erro()
+    except Exception as E:
+        notify_erro(E)
 
 if __name__ == '__main__':
     warnings.filterwarnings('ignore')

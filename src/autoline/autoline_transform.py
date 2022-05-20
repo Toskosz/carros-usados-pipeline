@@ -241,6 +241,7 @@ class AutolineTransform:
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
             curr.execute('truncate table stg.autoline')
             p.execute_batch(curr, self.__get_exchange_insert_query(data,"stg.autoline"), data.values)
+            curr.execute(open("src/sql_scripts/autoline_to_star_schema.sql", "r").read())
 
     def __get_exchange_insert_query(self,df,table) -> str:
         df_columns = list(df)

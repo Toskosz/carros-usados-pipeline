@@ -2,8 +2,8 @@ import smtplib
 import email.message
 import os
 
-def notify_erro():
-    texto = "<p>Erro durante pipeline.</p>"
+def notify_erro_et(ex):
+    texto = "<p>Erro durante pipeline. "+ str(ex) +" </p>"
     msg = email.message.Message()
     msg['Subject'] = "Email automático used-cars pipeline"
     
