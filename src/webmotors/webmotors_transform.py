@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, udf, translate, upper, substring_index, when, col, current_timestamp
+from pyspark.sql.functions import regexp_replace, udf, translate, upper, substring_index, when, col, current_timestamp, lit
 from pyspark.sql.types import StringType, StructField, StructType, FloatType, IntegerType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
@@ -121,7 +121,7 @@ class WebmotorsTransform:
             print("[LOG] Dataframe criado")
 
             for original_name, column_name in self.dummy_columns.items():
-                data = data.withColumn(column_name, when((col("ATRIBUTOS").contains(original_name)), 1).when((col("OPTIONALS").contains(original_name)), 1).otherwise(0))
+                data = data.withColumn(column_name, when((col("ATRIBUTOS").contains(original_name)), '1').when((col("OPTIONALS").contains(original_name)), '1').otherwise('0'))
 
             # drop atributos and optionals column
             data_with_dummy_columns = data.drop("ATRIBUTOS","OPTIONALS")
@@ -138,7 +138,13 @@ class WebmotorsTransform:
                     data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
 
             # creates DATA_CARGA column with datetime of load
-            data_to_load = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
+            tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
+            data_with_na = tmp_data.withColumn("WEBSITE", lit("WEBMOTORS"))
+
+            # fill missing data
+            data_to_load = data_with_na.na.fill("INDISPONIVEL", subset=['TITULO', 'FABRICANTE', 'MODELO', 'VERSAO', 'ANO_FABRICACAO', 'ANO_MODELO', 'TRANSMISSAO', 'QNTD_PORTAS', 'CORPO_VEICULO', 'COR', 'TIPO_VENDEDOR', 'CIDADE_VENDEDOR', 'ESTADO_VENDEDOR', 'UF_VENDEDOR', 'TIPO_ANUNCIO', 'COMENTARIO_DONO', 'COMBUSTIVEL'])
+            data_to_load = data_to_load.na.fill(False, subset=['BLINDADO', 'ENTREGA_CARRO', 'TROCA_COM_TROCO'])
+            data_to_load = data_to_load.na.fill(0.0, subset=['KILOMETRAGEM', 'PRECO', 'PRECO_DESEJADO', 'PORCENTAGEM_FIPE'])
 
             print("[LOG] Transformações feitas")
 
@@ -146,7 +152,6 @@ class WebmotorsTransform:
             # todo: load with pyspark dataframe
             pandas_dataframe = data_to_load.toPandas()
             print("[LOG] Conversão para pandas DataFrame")
-            # pandas_dataframe.to_csv("teste.csv")
 
             self.__load_data(pandas_dataframe)
             print("[LOG] Carga concluída")
@@ -178,7 +183,7 @@ class WebmotorsTransform:
         return int_column.cast(StringType())
 
     def __compute_bool(self, column):
-        return when(column.contains("true"), 1).otherwise(0)
+        return when(column.contains("true"), '1').otherwise('0')
 
     def __to_float(self, column):
         return column.cast(FloatType())
@@ -190,7 +195,7 @@ class WebmotorsTransform:
 
     # computes column BLINDADO
     def __compute_BLINDADO(self, column):
-        return when(column.contains("S"), 1).otherwise(0)
+        return when(column.contains("S"), '1').otherwise('0')
 
     # separates the ESTADO_VENDEDOR into two colums, ESTADO_VENDEDOR and UF_VENDEDOR
     def __compute_UF(self, estados):
@@ -205,7 +210,9 @@ class WebmotorsTransform:
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
+            curr.execute('truncate table stg.webmotors')
             p.execute_batch(curr, self.__get_exchange_insert_query(data,"stg.webmotors"), data.values)
+            curr.execute(open("src/sql_scripts/webmotors_to_star_schema.sql", "r").read())
 
     def __get_exchange_insert_query(self,df,table) -> str:
         df_columns = list(df)

@@ -23,10 +23,12 @@ class AutolineExtract:
         }
 
     def run(self, max_batch_size):
+        print("[LOG] Extração inicializada.")
         data = self.__get_recent_cars(max_batch_size)
         # now = datetime.now()
         # str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
         # data.to_csv('raw/autoline/'+str_hora+'.csv',index=False)
+        print("[LOG] Extração finalizada.")
         return data
 
     # Extract only the data we want
@@ -39,7 +41,6 @@ class AutolineExtract:
         tmp_row['ANO_FABRICACAO'] = data['BuiltYear']
         tmp_row['CIDADE'] = data['CityName']
         tmp_row['COR'] = data['ColorName']
-        tmp_row['DATA_CRIACAO_AD'] = data['DataCriacao']
         tmp_row['QNTD_PORTAS'] = data['DoorNumberName']
         tmp_row['EMAIL'] = data['Email']
         tmp_row['MOTOR'] = data['EngineTypeName']
@@ -105,7 +106,7 @@ class AutolineExtract:
 
     def __get_recent_cars(self, max_batch_size) -> pd.DataFrame:
 
-        carros = pd.DataFrame(columns=['AD_ID','INFORMACOES_ADICIONAIS','CORPO_VEICULO','ANO_FABRICACAO','CIDADE','COR','DATA_CRIACAO_AD',
+        carros = pd.DataFrame(columns=['AD_ID','INFORMACOES_ADICIONAIS','CORPO_VEICULO','ANO_FABRICACAO','CIDADE','COR',
             'QNTD_PORTAS','EMAIL','MOTOR','RECURSOS','COMBUSTIVEL','BLINDADO','COLECIONADOR','ADAPTADO_DEFICIENCIA','FINANCIAVEL','FINANCIADO','GARANTIA_DE_FABRICA','DONO_UNICO',
             'QUITADO','REGISTRAMENTO_PAGO','VENDEDOR_PJ','ACEITA_TROCA','IMPOSTOS_PAGOS','KILOMETRAGEM','LINK_AD','FABRICANTE','CELULAR','MODELO','ANO_MODELO','BAIRRO',
             'TELEFONE','PRECO','PRECO_FIPE','PLACA','COR_SECUNDARIA','TIPO_VEICULO','ENDERECO','COMPLEMENTO_ENDERECO','DOCUMENTO_VENDEDOR',

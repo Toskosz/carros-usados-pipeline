@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper, when, col, current_timestamp
+from pyspark.sql.functions import regexp_replace, to_timestamp, udf, translate, upper, when, col, current_timestamp, lit
 from pyspark.sql.types import StringType, StructField, StructType, FloatType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
@@ -22,7 +22,6 @@ class AutolineTransform:
             StructField("ANO_FABRICACAO", StringType(), True),
             StructField("CIDADE", StringType(), True),
             StructField("COR", StringType(), True),
-            StructField("DATA_CRIACAO_AD", StringType(), True),
             StructField("QNTD_PORTAS", StringType(), True),
             StructField("EMAIL", StringType(), True),
             StructField("MOTOR", StringType(), True),
@@ -70,7 +69,7 @@ class AutolineTransform:
             'Teto Solar':'TETO_SOLAR',
             'Bancos em Couro':'BANCO_DE_COURO',
             'Alarme':'ALARME',
-            'Freios ABS':'FREIO_ABS',
+            'ABS':'FREIO_ABS',
             'Sensor de Estacionamento':'SENSOR_DE_ESTACIONAMENTO',
             'Computador de Bordo':'COMPUTAR_DE_BORDO',
             'Air Bag':'AIRBAG',
@@ -108,7 +107,6 @@ class AutolineTransform:
             'Rádio e Toca Fitas':'RADIO_TOCAFITA',
             'Disqueteira':'DISQUETEIRA',
             'Escapamento Esportivo':'ESCAPAMENTO_ESPORTIVO',
-            'ABS':'FREIO_ABS'
         }
 
         self.columns_func_assigns = {
@@ -117,7 +115,6 @@ class AutolineTransform:
             "ANO_FABRICACAO": [self.__to_str],
             "CIDADE": [self.__clean_str_column],
             "COR": [self.__clean_str_column],
-            "DATA_CRIACAO_AD": [self.__fix_date_type],
             "QNTD_PORTAS": [self.__clean_str_column, self.__to_number],
             "COMBUSTIVEL": [self.__clean_str_column],
             "BLINDADO": [self.__compute_bool],
@@ -152,6 +149,49 @@ class AutolineTransform:
             "VERSAO": [self.__clean_str_column],
         }
 
+    def run(self, default_dataframe) -> None:
+        try:
+            data = self.spark.createDataFrame(default_dataframe, schema=self.schema)
+            
+            print("[LOG] Dataframe criado")
+
+            for original_name, column_name in self.dummy_columns.items():
+                data = data.withColumn(column_name, when((col("RECURSOS").contains(original_name)), '1').otherwise('0'))
+
+            # drop atributos and optionals column
+            data_to_type_compute = data.drop("RECURSOS")
+
+            print("[LOG] Colunas desnecessárias dropadas")
+
+            # types, string cleaning, computes special columns
+            for coluna, lst_f in self.columns_func_assigns.items():
+                for f in lst_f:
+                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
+
+            # fills na values and creates DATA_CARGA column with datetime of load
+            tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
+            data_with_na = tmp_data.withColumn("WEBSITE", lit("AUTOLINE"))
+
+            print("[LOG] Transformações feitas")
+
+            data_to_load = data_with_na.na.fill("INDISPONIVEL", subset=['INFORMACOES_ADICIONAIS', 'CORPO_VEICULO', 'ANO_FABRICACAO', 'CIDADE', 'COR', 'QNTD_PORTAS', 'EMAIL', 'MOTOR', 'COMBUSTIVEL', 'LINK_AD', 'FABRICANTE', 'CELULAR', 'MODELO', 'ANO_MODELO', 'BAIRRO', 'TELEFONE', 'PLACA', 'COR_SECUNDARIA', 'TIPO_VEICULO', 'ENDERECO', 'COMPLEMENTO_ENDERECO', 'DOCUMENTO_VENDEDOR', 'NOME_VENDEDOR', 'UF', 'ESTADO', 'TRANSMISSAO', 'TIPO_VENDEDOR', 'VERSAO', 'WHATSAPP'])
+            data_to_load = data_to_load.na.fill(False, subset=['BLINDADO','COLECIONADOR','ADAPTADO_DEFICIENCIA','FINANCIAVEL','FINANCIADO','GARANTIA_DE_FABRICA','DONO_UNICO','QUITADO','REGISTRAMENTO_PAGO','VENDEDOR_PJ','ACEITA_TROCA','IMPOSTOS_PAGOS'])
+            data_to_load = data_to_load.na.fill(0.0, subset=['KILOMETRAGEM','PRECO','PRECO_FIPE'])
+            
+            # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
+            pandas_dataframe = data_to_load.toPandas()
+            print("[LOG] Conversão para pandas DataFrame")
+            # pandas_dataframe.to_csv("teste.csv")
+
+            self.__load_data(pandas_dataframe)
+            print("[LOG] Carga concluída")
+
+            self.spark.stop()
+        except Exception as E:
+            print("[ERRO] O seguinte erro interrompeu o processo:")
+            self.spark.stop()
+            raise(E)
+
     def __to_number(self, column):
         return when(column.contains("ZERO"), "0").when(column.contains("UM"), "1")\
             .when(column.contains("DOIS"), "2").when(column.contains("TRES"), "3")\
@@ -166,10 +206,10 @@ class AutolineTransform:
         return column.cast(StringType())
 
     def __compute_bool(self, column):
-        return when(column.contains("VERDADEIRO"), 1).otherwise(0)
+        return when(column.contains("VERDADEIRO"), '1').otherwise('0')
         
     def __compute_inverse_bool(self, column):
-        return when(column.contains("VERDADEIRO"), 0).otherwise(1)
+        return when(column.contains("VERDADEIRO"), '0').otherwise('1')
 
     def __fix_date_type(self, column):
         column_fixed = regexp_replace(column, "T", " ")
@@ -200,47 +240,11 @@ class AutolineTransform:
         normalized_column = translate(regexp_replace(c, "\p{M}", ""), self.matching_string, self.replace_string)
         return upper(normalized_column)
 
-    def run(self, default_dataframe) -> None:
-        try:
-            data = self.spark.createDataFrame(default_dataframe, schema=self.schema)
-            
-            print("[LOG] Dataframe criado")
-
-            for original_name, column_name in self.dummy_columns.items():
-                data = data.withColumn(column_name, when((col("RECURSOS").contains(original_name)), 1).otherwise(0))
-
-            # drop atributos and optionals column
-            data_to_type_compute = data.drop("RECURSOS")
-
-            print("[LOG] Colunas desnecessárias dropadas")
-
-            # types, string cleaning, computes special columns
-            for coluna, lst_f in self.columns_func_assigns.items():
-                for f in lst_f:
-                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
-
-            # fills na values and creates DATA_CARGA column with datetime of load
-            data_to_load = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
-
-            print("[LOG] Transformações feitas")
-
-            # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
-            pandas_dataframe = data_to_load.toPandas()
-            print("[LOG] Conversão para pandas DataFrame")
-            # pandas_dataframe.to_csv("teste.csv")
-
-            self.__load_data(pandas_dataframe)
-            print("[LOG] Carga concluída")
-
-            self.spark.stop()
-        except Exception as E:
-            print("[ERRO] O seguinte erro interrompeu o processo:")
-            self.spark.stop()
-            raise(E)
-
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
+            curr.execute('truncate table stg.autoline')
             p.execute_batch(curr, self.__get_exchange_insert_query(data,"stg.autoline"), data.values)
+            curr.execute(open("src/sql_scripts/autoline_to_star_schema.sql", "r").read())
 
     def __get_exchange_insert_query(self,df,table) -> str:
         df_columns = list(df)
