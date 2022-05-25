@@ -183,7 +183,7 @@ class AutolineTransform:
             # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
             pandas_dataframe = data_to_load.toPandas()
             print("[LOG] Conversão para pandas DataFrame")
-            pandas_dataframe.to_csv("teste.csv")
+            #pandas_dataframe.to_csv("teste.csv")
 
             self.__load_data(pandas_dataframe)
             print("[LOG] Carga concluída")

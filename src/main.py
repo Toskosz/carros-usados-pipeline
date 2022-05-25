@@ -8,12 +8,12 @@ import warnings
 def run() -> None:
     try:
         autoline_extract = AutolineExtract()
-        data = autoline_extract.run(20)
+        data = autoline_extract.run(1000)
         autoline_transform = AutolineTransform()
         autoline_transform.run(data)
 
         webmotors_extract = WebmotorsExtract()
-        data = webmotors_extract.run(20)
+        data = webmotors_extract.run(1000)
         webmotors_transform = WebmotorsTransform()
         webmotors_transform.run(data)
     except Exception as E:
