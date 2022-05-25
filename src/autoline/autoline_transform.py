@@ -135,7 +135,7 @@ class AutolineTransform:
             "ANO_MODELO": [self.__to_str],
             "BAIRRO": [self.__clean_str_column],
             "PRECO": [self.__to_float],
-            "PRECO_FIPE": [],
+            "PRECO_FIPE": [self.__fix_empty_string, self.__to_float],
             "COR_SECUNDARIA": [self.__clean_str_column],
             "TIPO_VEICULO": [self.__clean_str_column],
             "ENDERECO": [self.__clean_str_column],
@@ -147,6 +147,8 @@ class AutolineTransform:
             "TRANSMISSAO": [self.__clean_str_column],
             "TIPO_VENDEDOR": [self.__clean_str_column],
             "VERSAO": [self.__clean_str_column],
+            "PLACA": [self.__fix_empty_string],
+            "MOTOR": [self.__clean_str_column, self.__fix_empty_string]
         }
 
     def run(self, default_dataframe) -> None:
@@ -181,7 +183,7 @@ class AutolineTransform:
             # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
             pandas_dataframe = data_to_load.toPandas()
             print("[LOG] Conversão para pandas DataFrame")
-            # pandas_dataframe.to_csv("teste.csv")
+            pandas_dataframe.to_csv("teste.csv")
 
             self.__load_data(pandas_dataframe)
             print("[LOG] Carga concluída")
@@ -208,14 +210,11 @@ class AutolineTransform:
     def __compute_bool(self, column):
         return when(column.contains("VERDADEIRO"), '1').otherwise('0')
         
+    def __fix_empty_string(self, column):
+        return when(column == "", None).otherwise(column)
+
     def __compute_inverse_bool(self, column):
         return when(column.contains("VERDADEIRO"), '0').otherwise('1')
-
-    def __fix_date_type(self, column):
-        column_fixed = regexp_replace(column, "T", " ")
-        column_with_nat = to_timestamp(column_fixed, 'yyyy-MM-dd HH:mm:ss')
-        column_result = regexp_replace(column_with_nat, "NaT", "NULL")
-        return column_result
 
     def __remove_jump_line(self, column):
         return regexp_replace(column, "\\n", "")
