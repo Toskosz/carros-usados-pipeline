@@ -123,4 +123,4 @@ class AutolineExtract:
 
             carros = carros.append(self.__extract_data(data), ignore_index=True)
 
-        return carros.head(max_batch_size).drop_duplicates()
+        return carros.head(max_batch_size)

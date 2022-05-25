@@ -175,4 +175,4 @@ class WebmotorsExtract:
             # next page
             contador += 1
 
-        return carros_webmotors.head(max_batch_size).drop_duplicates()
+        return carros_webmotors.head(max_batch_size)
