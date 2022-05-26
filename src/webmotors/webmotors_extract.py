@@ -21,18 +21,7 @@ class WebmotorsExtract:
             'User-Agent':	'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0'
         }
 
-    def run(self, max_batch_size):
-        print("[LOG] Extração inicializada.")
-        data = self.__get_recent_cars(max_batch_size)
-        # now = datetime.now()
-        # str_hora = str(now.year) + str(now.month) + str(now.day) + str(now.hour)
-        # data.to_csv('raw/webmotors/'+str_hora+'.csv',index=False)
-        print("[LOG] Extração finalizada.")
-        return data
-
-#   Extraction part
-
-    def __carrega_specs(self, specs) -> dict:
+    def __load_specs(self, specs) -> dict:
         tmp_row = {}
         tmp_row['TITULO'] = specs['Title']
         tmp_row['FABRICANTE'] = specs['Make']['Value']
@@ -57,26 +46,26 @@ class WebmotorsExtract:
 
         return tmp_row
 
-    def __carrega_vendedor(self, vendedor) -> dict:
+    def __load_seller(self, seller) -> dict:
         tmp_row = {}
 
-        tmp_row['TIPO_VENDEDOR'] = vendedor['SellerType']
+        tmp_row['TIPO_VENDEDOR'] = seller['SellerType']
 
-        if 'City' in vendedor.keys(): 
-            tmp_row['CIDADE_VENDEDOR'] = vendedor['City']
+        if 'City' in seller.keys(): 
+            tmp_row['CIDADE_VENDEDOR'] = seller['City']
 
-        tmp_row['ESTADO_VENDEDOR'] = vendedor['State']
+        tmp_row['ESTADO_VENDEDOR'] = seller['State']
 
-        tmp_row['TIPO_ANUNCIO'] = vendedor['AdType']['Value']
-        tmp_row['ENTREGA_CARRO'] = vendedor['CarDelivery']
-        tmp_row['TROCA_COM_TROCO'] = vendedor['TrocaComTroco']
+        tmp_row['TIPO_ANUNCIO'] = seller['AdType']['Value']
+        tmp_row['ENTREGA_CARRO'] = seller['CarDelivery']
+        tmp_row['TROCA_COM_TROCO'] = seller['TrocaComTroco']
 
         return tmp_row
 
-    def __carrega_precos(self, precos) -> dict:
+    def __load_prices(self, prices) -> dict:
         tmp_row = {}
-        tmp_row['PRECO'] = precos['Price']
-        tmp_row['PRECO_DESEJADO'] = precos['SearchPrice']
+        tmp_row['PRECO'] = prices['Price']
+        tmp_row['PRECO_DESEJADO'] = prices['SearchPrice']
         return tmp_row
 
     def __get_optionals(self, op_url):
@@ -103,31 +92,25 @@ class WebmotorsExtract:
 
         return tmp_row
 
-    # Moves the data to a dict to be appended to the batch dataframe
-    # with the right column names
-    def __carrega_carro(self, carro) -> dict:
+    def __load_car(self, car) -> dict:
         tmp_row = {}
-        tmp_row['AD_ID'] = carro['UniqueId']
+        tmp_row['AD_ID'] = car['UniqueId']
 
-        # SPECS
-        specs = carro['Specification']
-        tmp_row.update(self.__carrega_specs(specs))
+        specs = car['Specification']
+        tmp_row.update(self.__load_specs(specs))
 
-        # VENDEDOR
-        vendedor = carro['Seller']
-        tmp_row.update(self.__carrega_vendedor(vendedor))
+        vendedor = car['Seller']
+        tmp_row.update(self.__load_seller(vendedor))
         
-        # PRECOS
-        precos = carro['Prices']
-        tmp_row.update(self.__carrega_precos(precos))
+        precos = car['Prices']
+        tmp_row.update(self.__load_prices(precos))
 
-        if 'LongComment' in carro.keys():
-            tmp_row['COMENTARIO_DONO'] = carro['LongComment']
+        if 'LongComment' in car.keys():
+            tmp_row['COMENTARIO_DONO'] = car['LongComment']
 
-        if 'FipePercent' in carro.keys():
-            tmp_row['PORCENTAGEM_FIPE'] = carro['FipePercent']
-        
-        # OPTIONALS
+        if 'FipePercent' in car.keys():
+            tmp_row['PORCENTAGEM_FIPE'] = car['FipePercent']
+
         optionals_url = self.__make_opt_url(tmp_row)
         optionals = self.__get_optionals(optionals_url)
         tmp_row.update(optionals)
@@ -138,41 +121,44 @@ class WebmotorsExtract:
         tmp_versao = unidecode.unidecode(tmp_row['VERSAO'])
         tmp_fabricante = unidecode.unidecode(tmp_row['FABRICANTE'])
         tmp_modelo = unidecode.unidecode(tmp_row['MODELO'])
-        # example:
-        # https://www.webmotors.com.br/api/detail/car/chery/arrizo-6-pro/15-vvt-turbo-iflex-cvt/4-portas/2021-2022/39546505
+        
         op_url = "https://www.webmotors.com.br/api/detail/car/" + tmp_fabricante.lower().replace(' ','-') + "/" + tmp_modelo.replace(' ', '-').lower() + "/" + \
         tmp_versao.replace('.','').replace(' ','-').lower() + "/" + tmp_row['QNTD_PORTAS'] + "-portas/" + tmp_row['ANO_FABRICACAO'] + "-" + str(int(tmp_row['ANO_MODELO'])) + "/" + \
         str(tmp_row['AD_ID'])
         
-        return op_url
-        
+        return op_url   
 
     def __get_recent_cars(self, max_batch_size) -> pd.DataFrame:
-        # DataFrame for batching
-        carros_webmotors = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
+
+        cars = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
         'ATRIBUTOS','BLINDADO','COR','TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','TIPO_ANUNCIO','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO',
         'PORCENTAGEM_FIPE','OPTIONALS','COMBUSTIVEL'])
 
-        contador = 1
+        counter = 1
 
-        while len(carros_webmotors.index) <= max_batch_size:
-            url = 'https://www.webmotors.com.br/api/search/car?url=https://www.webmotors.com.br/carros/estoque?o=8&actualPage='+str(contador)+'&displayPerPage=24&order=8&showMenu=true&showCount=true&showBreadCrumb=true&testAB=false&returnUrl=false'
+        while len(cars.index) <= max_batch_size:
+            url = 'https://www.webmotors.com.br/api/search/car?url=https://www.webmotors.com.br/carros/estoque?o=8&actualPage='+str(counter)+'&displayPerPage=24&order=8&showMenu=true&showCount=true&showBreadCrumb=true&testAB=false&returnUrl=false'
             
-            # Makes request and handles possibility of a 500 response
             response = requests.get(url = url, headers=self.req_headers)
             while response.status_code >= 500:
                 response = requests.get(url = url, headers=self.req_headers)
 
-            # API restrictions(?)
+            # API restrictions
             sleep(5)
 
             data = response.json()
-            carros = data['SearchResults']
-            for carro in carros:
-                carro_row = self.__carrega_carro(carro)
-                carros_webmotors = carros_webmotors.append(carro_row, ignore_index=True)
+            new_cars = data['SearchResults']
 
-            # next page
-            contador += 1
-
-        return carros_webmotors.head(max_batch_size)
+            for car in new_cars:
+                cars = cars.append(self.__load_car(car), ignore_index=True)
+            
+            counter += 1
+        
+        return cars.head(max_batch_size)
+    
+    def run(self, max_batch_size):
+        print("[LOG] Extracting...")
+        data = self.__get_recent_cars(max_batch_size)
+        # TODO: Load raw data to S3
+        print("[LOG] Done extracting.")
+        return data

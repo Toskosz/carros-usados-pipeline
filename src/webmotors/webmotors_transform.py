@@ -93,11 +93,11 @@ class WebmotorsTransform:
             "FABRICANTE": [self.__clean_str_column],
             "MODELO": [self.__clean_str_column],
             "VERSAO": [self.__clean_str_column],
-            # "ANO_FABRICACAO": [self.__to_str],    # todo: 20 -> 2020 verify this and
-            "ANO_MODELO": [self.__to_str],          # todo: 20 -> 2020 correct it
+            "ANO_FABRICACAO": [],
+            "ANO_MODELO": [self.__to_str],
             "KILOMETRAGEM":[self.__to_float],
             "TRANSMISSAO": [self.__clean_str_column],
-            # "QNTD_PORTAS": [self.__to_str],
+            "QNTD_PORTAS": [],
             "CORPO_VEICULO": [self.__clean_str_column],
             "BLINDADO": [self.__compute_BLINDADO],
             "COR": [self.__clean_str_column],
@@ -118,43 +118,39 @@ class WebmotorsTransform:
         try:
             data = self.spark.createDataFrame(default_dataframe, schema=self.schema)
 
-            print("[LOG] Dataframe criado")
+            print("[LOG] Built DataFrame.")
 
             for original_name, column_name in self.dummy_columns.items():
                 data = data.withColumn(column_name, when((col("ATRIBUTOS").contains(original_name)), '1').when((col("OPTIONALS").contains(original_name)), '1').otherwise('0'))
 
-            # drop atributos and optionals column
             data_with_dummy_columns = data.drop("ATRIBUTOS","OPTIONALS")
 
-            print("[LOG] Colunas desnecessárias dropadas")
+            print("[LOG] Unecessary columns dropped.")
 
             # separation of UF and ESTADO from ESTADO column
             data_with_uf = data_with_dummy_columns.withColumn("UF_VENDEDOR", self.__compute_UF(data_with_dummy_columns.ESTADO_VENDEDOR))
             data_to_type_compute = data_with_uf.withColumn("ESTADO_VENDEDOR", self.__compute_ESTADO(data_with_uf.ESTADO_VENDEDOR))
             
-            # types, string cleaning, computes special columns
+            # Normalization of the data
             for coluna, lst_f in self.columns_func_assigns.items():
                 for f in lst_f:
                     data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
 
-            # creates DATA_CARGA column with datetime of load
             tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
             data_with_na = tmp_data.withColumn("WEBSITE", lit("WEBMOTORS"))
 
-            # fill missing data
             data_to_load = data_with_na.na.fill("INDISPONIVEL", subset=['TITULO', 'FABRICANTE', 'MODELO', 'VERSAO', 'ANO_FABRICACAO', 'ANO_MODELO', 'TRANSMISSAO', 'QNTD_PORTAS', 'CORPO_VEICULO', 'COR', 'TIPO_VENDEDOR', 'CIDADE_VENDEDOR', 'ESTADO_VENDEDOR', 'UF_VENDEDOR', 'TIPO_ANUNCIO', 'COMENTARIO_DONO', 'COMBUSTIVEL'])
             data_to_load = data_to_load.na.fill(False, subset=['BLINDADO', 'ENTREGA_CARRO', 'TROCA_COM_TROCO'])
             data_to_load = data_to_load.na.fill(0.0, subset=['KILOMETRAGEM', 'PRECO', 'PRECO_DESEJADO', 'PORCENTAGEM_FIPE'])
 
-            print("[LOG] Transformações feitas")
+            print("[LOG] Finished transformations")
 
             # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
-            # todo: load with pyspark dataframe
             pandas_dataframe = data_to_load.toPandas()
-            print("[LOG] Conversão para pandas DataFrame")
+            print("[LOG] Finished conversion to PD DataFrame")
 
             self.__load_data(pandas_dataframe)
-            print("[LOG] Carga concluída")
+            print("[LOG] Finished load to DB")
 
             self.spark.stop()
         except Exception as E:
@@ -188,22 +184,18 @@ class WebmotorsTransform:
     def __to_float(self, column):
         return column.cast(FloatType())
 
-    # removes special characters and uppercase it
     def __clean_str_column(self, column):
         normalized_column = translate(regexp_replace(column, "\p{M}", ""), self.matching_string, self.replace_string)
         return upper(normalized_column)
 
-    # computes column BLINDADO
     def __compute_BLINDADO(self, column):
         return when(column.contains("S"), '1').otherwise('0')
 
-    # separates the ESTADO_VENDEDOR into two colums, ESTADO_VENDEDOR and UF_VENDEDOR
     def __compute_UF(self, estados):
         estados_tmp = substring_index(estados, '(', -1) # DF)
         estados_tmp = substring_index(estados_tmp, ')', 1) # DF
         return estados_tmp
 
-    # computes new estado values without uf
     def __compute_ESTADO(self, estados):
         estados_tmp = substring_index(estados, '(', 1)
         return estados_tmp
