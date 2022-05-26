@@ -6,3 +6,7 @@
 - https://www.webmotors.com.br/
 - https://www.autoline.com.br/ 
 - https://www.meucarronovo.com.br (maybe later)
+
+## Improvements
+- Paralallelization of data extraction
+- Better schedueling (Airflow)
