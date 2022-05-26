@@ -8,7 +8,7 @@ It's a ETL data pipeline that extracts information about used cars ad's from mul
 - https://www.webmotors.com.br/
 - https://www.autoline.com.br/ 
 
-## Improvements
+## Improvements to be made
 - Paralallelization of data extraction
 - Better schedueling (Airflow)
 - Decouple load from transformation
