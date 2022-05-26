@@ -1,5 +1,7 @@
 # carros-usados-pipeline
 
+## What
+It's a ETL data pipeline that extracts information about used cars ad's from multiple sources, compiles it into a datawarehouse and makes data visualization through MetaBase. 
 
 ## Current data sources
 
