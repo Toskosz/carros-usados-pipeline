@@ -3,9 +3,9 @@ import email.message
 import os
 
 def notify_erro(ex):
-    texto = "<p>Erro durante pipeline. "+ str(ex) +" </p>"
+    texto = "<p>Pipeline error: "+ str(ex) +" </p>"
     msg = email.message.Message()
-    msg['Subject'] = "Email automático used-cars pipeline"
+    msg['Subject'] = "Automatic Email from used-cars pipeline"
     
     msg['From'] = os.getenv('EMAIL_SENDER', '')
     password = os.getenv('EMAIL_PASSWORD', '')

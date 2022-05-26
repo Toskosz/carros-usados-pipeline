@@ -1,6 +1,5 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
-
 import psycopg2
 
 # @dataclass used for reduced code repetition and cost

@@ -18,17 +18,12 @@ class TestWebMotorsExtractor(unittest.TestCase):
         
         cars_extracted = extractor.run(batch_size)
 
-        # Todas as colunas
         self.assertCountEqual(self.expected_columns, cars_extracted.columns)
-
-        # Numero de linhas
         self.assertEqual(len(cars_extracted.index), batch_size)
 
-        # Coluna AD_ID não pode ter nulos
         df_column_nan = cars_extracted.isnull().sum()
         self.assertEqual(df_column_nan['AD_ID'], 0)
         
-        # não pode ter linhas AD_ID repetidas
         duplicate_rows = cars_extracted[cars_extracted.duplicated(subset='AD_ID',keep=False)]
         self.assertEqual(len(duplicate_rows.index), 0)
 
@@ -38,17 +33,13 @@ class TestWebMotorsExtractor(unittest.TestCase):
         
         cars_extracted = extractor.run(batch_size)
 
-        # Todas as colunas
         self.assertCountEqual(self.expected_columns, cars_extracted.columns)
 
-        # Numero de linhas
         self.assertEqual(len(cars_extracted.index), batch_size)
 
-        # Coluna AD_ID não pode ter nulos
         df_column_nan = cars_extracted.isnull().sum()
         self.assertEqual(df_column_nan['AD_ID'], 0)
         
-        # não pode ter linhas AD_ID repetidas
         duplicate_rows = cars_extracted[cars_extracted.duplicated(subset='AD_ID',keep=False)]
         self.assertEqual(len(duplicate_rows.index), 0)
 
@@ -58,17 +49,13 @@ class TestWebMotorsExtractor(unittest.TestCase):
         
         cars_extracted = extractor.run(batch_size)
 
-        # Todas as colunas
         self.assertCountEqual(self.expected_columns, cars_extracted.columns)
 
-        # Numero de linhas
         self.assertEqual(len(cars_extracted.index), batch_size)
 
-        # Coluna AD_ID não pode ter nulos
         df_column_nan = cars_extracted.isnull().sum()
         self.assertEqual(df_column_nan['AD_ID'], 0)
         
-        # não pode ter linhas AD_ID repetidas
         duplicate_rows = cars_extracted[cars_extracted.duplicated(subset='AD_ID',keep=False)]
         self.assertEqual(len(duplicate_rows.index), 0)
 
