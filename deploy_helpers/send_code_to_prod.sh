@@ -8,13 +8,13 @@ fi
 
 # zip repo into gz file
 cd ..
-rm -f bitcoinmonitor.gzip
-zip -r bitcoinmonitor.gzip bitcoinmonitor/*
+rm -f used_cars_pipeline.gzip
+zip -r used_cars_pipeline.gzip used_cars_pipeline/*
 
 # Send zipped repo to EC2
 chmod 400 $1
-scp -i $1 bitcoinmonitor.gzip ubuntu@$2:~/.
-cd bitcoinmonitor
+scp -i $1 used_cars_pipeline.gzip ubuntu@$2:~/.
+cd used_cars_pipeline
 
 # Send docker installation script to EC2
 scp -i $1 ./deploy_helpers/install_docker.sh ubuntu@$2:~/.
