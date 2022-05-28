@@ -4,7 +4,7 @@
 It's a ETL data pipeline that extracts information about used cars ad's from multiple sources, compiles it into a datawarehouse and makes data visualization through MetaBase.
 
 ## Diagram
-![Design](https://github.com/Toskosz/carros-usados-pipeline/blob/main/media/used-cars-pipeline-diagram_page-0001.jpg)
+![Design](https://github.com/Toskosz/carros-usados-pipeline/blob/pandas/media/used-cars-pipeline-diagram_page-0001.jpg)
 
 ## Current data sources
 
