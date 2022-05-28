@@ -1,6 +1,5 @@
 import requests
 import pandas as pd
-from datetime import datetime
 from time import sleep
 import unidecode
 

@@ -1,8 +1,8 @@
+from datetime import datetime
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
 import psycopg2.extras as p
-import unicodedata
-import sys
+import numpy as np
 
 class WebmotorsTransform:
 
@@ -82,95 +82,65 @@ class WebmotorsTransform:
 
     def __create_dummy_columns(self, row):
         for original_name, column_name in self.dummy_columns.items():
-            if original_name in row["RECURSOS"] or original_name in row['OPTIONALS']:
+            if original_name in row["ATRIBUTOS"] or original_name in row['OPTIONALS']:
                 row[column_name] = True
             else:
                 row[column_name] = False
         return row
 
+    def __properly_fill_na(self, df):
+        for col in df:
+            datatype = df[col].dtype 
+            
+            if datatype == int or datatype == float:
+                df[col].fillna(0, inplace=True)
+            elif datatype == str:
+                df[col].fillna("INDISPONIVEL", inplace=True)
+            else:
+                df[col].fillna(False, inplace=True)
+        
+        return df
+
     def run(self, default_dataframe) -> None:
         try:
-            df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop('RECURSOS', 1)
-
-            for original_name, column_name in self.dummy_columns.items():
-                data = data.withColumn(column_name, when((col("ATRIBUTOS").contains(original_name)), '1').when((col("OPTIONALS").contains(original_name)), '1').otherwise('0'))
-
-            data_with_dummy_columns = data.drop("ATRIBUTOS","OPTIONALS")
-
-            print("[LOG] Unecessary columns dropped.")
+            df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop(['ATRIBUTOS', 'OPTIONALS'], 1)
 
             # separation of UF and ESTADO from ESTADO column
-            data_with_uf = data_with_dummy_columns.withColumn("UF_VENDEDOR", self.__compute_UF(data_with_dummy_columns.ESTADO_VENDEDOR))
-            data_to_type_compute = data_with_uf.withColumn("ESTADO_VENDEDOR", self.__compute_ESTADO(data_with_uf.ESTADO_VENDEDOR))
+            df_with_dummys['UF_VENDEDOR'] = df_with_dummys["ESTADO_VENDEDOR"].apply(lambda st: st[st.find("(")+1:st.find(")")])
+            df_with_dummys['ESTADO_VENDEDOR'] = df_with_dummys["ESTADO_VENDEDOR"].apply(lambda st: st[:st.find("(")])
             
-            # Normalization of the data
             for coluna, lst_f in self.columns_func_assigns.items():
                 for f in lst_f:
-                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
+                    df_with_dummys[coluna] = f(df_with_dummys[coluna])
 
-            tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
-            data_with_na = tmp_data.withColumn("WEBSITE", lit("WEBMOTORS"))
+            df_with_dummys['DATA_CARGA'] = datetime.now()
+            df_with_dummys['WEBSITE'] = "WEBMOTORS"
 
-            data_to_load = data_with_na.na.fill("INDISPONIVEL", subset=['TITULO', 'FABRICANTE', 'MODELO', 'VERSAO', 'ANO_FABRICACAO', 'ANO_MODELO', 'TRANSMISSAO', 'QNTD_PORTAS', 'CORPO_VEICULO', 'COR', 'TIPO_VENDEDOR', 'CIDADE_VENDEDOR', 'ESTADO_VENDEDOR', 'UF_VENDEDOR', 'TIPO_ANUNCIO', 'COMENTARIO_DONO', 'COMBUSTIVEL'])
-            data_to_load = data_to_load.na.fill(False, subset=['BLINDADO', 'ENTREGA_CARRO', 'TROCA_COM_TROCO'])
-            data_to_load = data_to_load.na.fill(0.0, subset=['KILOMETRAGEM', 'PRECO', 'PRECO_DESEJADO', 'PORCENTAGEM_FIPE'])
+            data_to_load = self.__properly_fill_na(df_with_dummys)
 
             print("[LOG] Finished transformations")
 
-            # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
-            pandas_dataframe = data_to_load.toPandas()
-            print("[LOG] Finished conversion to PD DataFrame")
-
-            self.__load_data(pandas_dataframe)
+            self.__load_data(data_to_load)
             print("[LOG] Finished load to DB")
 
-            self.spark.stop()
         except Exception as E:
-            print("[ERRO] O seguinte erro interrompeu o processo:")
-            self.spark.stop()
             raise(E)
 
-    def __make_trans(self):
-        matching_string = ""
-        replace_string = ""
-
-        for i in range(ord(" "), sys.maxunicode):
-            name = unicodedata.name(chr(i), "")
-            if "WITH" in name:
-                try:
-                    base = unicodedata.lookup(name.split(" WITH")[0])
-                    matching_string += chr(i)
-                    replace_string += base
-                except KeyError:
-                    pass
-
-        return matching_string, replace_string
-
     def __to_str(self, column):
-        int_column = column.cast(IntegerType())
-        return int_column.cast(StringType())
+        return column.astype(str)
 
     def __compute_bool(self, column):
-        return when(column.contains("true"), '1').otherwise('0')
+        return np.where(column=="true", True, False)
 
     def __to_float(self, column):
-        return column.cast(FloatType())
+        return column.astype(float)
 
     def __clean_str_column(self, column):
-        normalized_column = translate(regexp_replace(column, "\p{M}", ""), self.matching_string, self.replace_string)
-        return upper(normalized_column)
+        return column.str.replace('[^\w\s]', '').upper()
+        # return column.map(lambda x: re.sub(r'\W+', '', x)).str.upper()
 
     def __compute_BLINDADO(self, column):
-        return when(column.contains("S"), '1').otherwise('0')
-
-    def __compute_UF(self, estados):
-        estados_tmp = substring_index(estados, '(', -1) # DF)
-        estados_tmp = substring_index(estados_tmp, ')', 1) # DF
-        return estados_tmp
-
-    def __compute_ESTADO(self, estados):
-        estados_tmp = substring_index(estados, '(', 1)
-        return estados_tmp
+        return np.where(column=="S", True, False)
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
