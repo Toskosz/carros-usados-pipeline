@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, udf, translate, upper, substring_index, when, col, current_timestamp, lit
+from pyspark.sql.functions import regexp_replace, translate, upper, substring_index, when, col, current_timestamp, lit
 from pyspark.sql.types import StringType, StructField, StructType, FloatType, IntegerType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
