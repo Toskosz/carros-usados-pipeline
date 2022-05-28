@@ -1,67 +1,12 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, translate, upper, when, col, current_timestamp, lit
-from pyspark.sql.types import StringType, StructField, StructType, FloatType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
+from datetime import datetime
 import psycopg2.extras as p
-import unicodedata
-import sys
+import numpy as np
 
 class AutolineTransform:
 
     def __init__(self) -> None:
-        self.spark = SparkSession.builder.appName("autoline transformation").getOrCreate()
-        self.matching_string, self.replace_string = self.__make_trans()
-        
-        self.schema = StructType([
-            StructField("AD_ID", StringType(), True),
-            StructField("INFORMACOES_ADICIONAIS", StringType(), True),
-            StructField("CORPO_VEICULO", StringType(), True),
-            StructField("ANO_FABRICACAO", StringType(), True),
-            StructField("CIDADE", StringType(), True),
-            StructField("COR", StringType(), True),
-            StructField("QNTD_PORTAS", StringType(), True),
-            StructField("EMAIL", StringType(), True),
-            StructField("MOTOR", StringType(), True),
-            StructField("RECURSOS", StringType(), True),
-            StructField("COMBUSTIVEL", StringType(), True),
-            StructField("BLINDADO", StringType(), True),
-            StructField("COLECIONADOR", StringType(), True),
-            StructField("ADAPTADO_DEFICIENCIA", StringType(), True),
-            StructField("FINANCIAVEL", StringType(), True),
-            StructField("FINANCIADO", StringType(), True),
-            StructField("GARANTIA_DE_FABRICA", StringType(), True),
-            StructField("DONO_UNICO", StringType(), True),
-            StructField("QUITADO", StringType(), True),
-            StructField("REGISTRAMENTO_PAGO", StringType(), True),
-            StructField("VENDEDOR_PJ", StringType(), True),
-            StructField("ACEITA_TROCA", StringType(), True),
-            StructField("IMPOSTOS_PAGOS", StringType(), True),
-            StructField("KILOMETRAGEM", StringType(), True),
-            StructField("LINK_AD", StringType(), True),
-            StructField("FABRICANTE", StringType(), True),
-            StructField("CELULAR", StringType(), True),
-            StructField("MODELO", StringType(), True),
-            StructField("ANO_MODELO", StringType(), True),
-            StructField("BAIRRO", StringType(), True),
-            StructField("TELEFONE", StringType(), True),
-            StructField("PRECO", FloatType(), True),
-            StructField("PRECO_FIPE", StringType(), True),
-            StructField("PLACA", StringType(), True),
-            StructField("COR_SECUNDARIA", StringType(), True),
-            StructField("TIPO_VEICULO", StringType(), True),
-            StructField("ENDERECO", StringType(), True),
-            StructField("COMPLEMENTO_ENDERECO", StringType(), True),
-            StructField("DOCUMENTO_VENDEDOR", StringType(), True),
-            StructField("NOME_VENDEDOR", StringType(), True),
-            StructField("UF", StringType(), True),
-            StructField("ESTADO", StringType(), True),
-            StructField("TRANSMISSAO", StringType(), True),
-            StructField("TIPO_VENDEDOR", StringType(), True),
-            StructField("VERSAO", StringType(), True),
-            StructField("WHATSAPP", StringType(), True)
-        ])
-
         self.dummy_columns = {
             'Ar Condicionado':'AR_CONDICIONADO',
             'Teto Solar':'TETO_SOLAR',
@@ -149,90 +94,74 @@ class AutolineTransform:
             "MOTOR": [self.__clean_str_column, self.__fix_empty_string]
         }
 
+    def __create_dummy_columns(self, row):
+        for original_name, column_name in self.dummy_columns.items():
+            if original_name in row["RECURSOS"]:
+                row[column_name] = True
+            else:
+                row[column_name] = False
+        return row
+
+    def __properly_fill_na(self, df):
+        for col in df:
+            datatype = df[col].dtype 
+            
+            if datatype == int or datatype == float:
+                df[col].fillna(0, inplace=True)
+            elif datatype == str:
+                df[col].fillna("INDISPONIVEL", inplace=True)
+            else:
+                df[col].fillna(False, inplace=True)
+        
+        return df
+
     def run(self, default_dataframe) -> None:
         try:
-            data = self.spark.createDataFrame(default_dataframe, schema=self.schema)
-            
-            print("[LOG] Built DataFrame.")
+            df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop('RECURSOS', 1)
 
-            for original_name, column_name in self.dummy_columns.items():
-                data = data.withColumn(column_name, when((col("RECURSOS").contains(original_name)), '1').otherwise('0'))
-
-            data_to_type_compute = data.drop("RECURSOS")
-
-            print("[LOG] Unecessary columns dropped.")
-
-            # Normalization of the data
             for coluna, lst_f in self.columns_func_assigns.items():
                 for f in lst_f:
-                    data_to_type_compute = data_to_type_compute.withColumn(coluna, f(col(coluna)))
+                    df_with_dummys[coluna] = f(df_with_dummys[coluna])
 
-            tmp_data = data_to_type_compute.withColumn("DATA_CARGA", current_timestamp())
-            data_with_na = tmp_data.withColumn("WEBSITE", lit("AUTOLINE"))
+            df_with_dummys['DATA_CARGA'] = datetime.now()
+            df_with_dummys['WEBSITE'] = "AUTOLINE"
 
-            data_to_load = data_with_na.na.fill("INDISPONIVEL", subset=['INFORMACOES_ADICIONAIS', 'CORPO_VEICULO', 'ANO_FABRICACAO', 'CIDADE', 'COR', 'QNTD_PORTAS', 'EMAIL', 'MOTOR', 'COMBUSTIVEL', 'LINK_AD', 'FABRICANTE', 'CELULAR', 'MODELO', 'ANO_MODELO', 'BAIRRO', 'TELEFONE', 'PLACA', 'COR_SECUNDARIA', 'TIPO_VEICULO', 'ENDERECO', 'COMPLEMENTO_ENDERECO', 'DOCUMENTO_VENDEDOR', 'NOME_VENDEDOR', 'UF', 'ESTADO', 'TRANSMISSAO', 'TIPO_VENDEDOR', 'VERSAO', 'WHATSAPP'])
-            data_to_load = data_to_load.na.fill(False, subset=['BLINDADO','COLECIONADOR','ADAPTADO_DEFICIENCIA','FINANCIAVEL','FINANCIADO','GARANTIA_DE_FABRICA','DONO_UNICO','QUITADO','REGISTRAMENTO_PAGO','VENDEDOR_PJ','ACEITA_TROCA','IMPOSTOS_PAGOS'])
-            data_to_load = data_to_load.na.fill(0.0, subset=['KILOMETRAGEM','PRECO','PRECO_FIPE'])
-            
+            data_to_load = self.__properly_fill_na(df_with_dummys)
+
             print("[LOG] Finished transformations")
 
-            # Uses pandas dataframe to make the load because i cant do it with pyspark at the moment
-            pandas_dataframe = data_to_load.toPandas()
-            print("[LOG] Finished conversion to PD DataFrame")
-
-            self.__load_data(pandas_dataframe)
+            self.__load_data(data_to_load)
             print("[LOG] Finished load to DB")
 
-            self.spark.stop()
         except Exception as E:
-            print("[ERROR] The following error interrupted the process:")
-            self.spark.stop()
             raise(E)
 
     def __to_number(self, column):
-        return when(column.contains("ZERO"), "0").when(column.contains("UM"), "1")\
-            .when(column.contains("DOIS"), "2").when(column.contains("TRES"), "3")\
-            .when(column.contains("QUATRO"), "4").when(column.contains("CINCO"), "5")\
-            .when(column.contains("SEIS"), "6").when(column.contains("SETE"), "7")\
-            .when(column.contains("OITO"), "8").when(column.contains("NOVE"), "9").otherwise("0")
-
+        return column.map({'ZERO': '0', 'UM': '1', 'DOIS': '2',
+         'TRES': '3', 'QUATRO': '4', 'CINCO': '5', 'SEIS': '6', 
+         'SETE': '7', 'OITO': '8', 'NOVE': '9'}, na_action='ignore')
+        
     def __to_float(self, column):
-        return column.cast(FloatType())
+        return column.astype(float)
 
     def __to_str(self, column):
-        return column.cast(StringType())
+        return column.astype(str)
 
     def __compute_bool(self, column):
-        return when(column.contains("VERDADEIRO"), '1').otherwise('0')
+        return np.where(column=='VERDADEIRO', True, False)
         
     def __fix_empty_string(self, column):
-        return when(column == "", None).otherwise(column)
-
+        return np.where(column=="", None, column)
+        
     def __compute_inverse_bool(self, column):
-        return when(column.contains("VERDADEIRO"), '0').otherwise('1')
-
+        return np.where(column=='VERDADEIRO', False, True)
+        
     def __remove_jump_line(self, column):
-        return regexp_replace(column, "\\n", "")
+        return column.replace(to_replace=r"\\n", value="", regex=True)
 
-    def __make_trans(self):
-        matching_string = ""
-        replace_string = ""
-
-        for i in range(ord(" "), sys.maxunicode):
-            name = unicodedata.name(chr(i), "")
-            if "WITH" in name:
-                try:
-                    base = unicodedata.lookup(name.split(" WITH")[0])
-                    matching_string += chr(i)
-                    replace_string += base
-                except KeyError:
-                    pass
-
-        return matching_string, replace_string
-
-    def __clean_str_column(self, c):
-        normalized_column = translate(regexp_replace(c, "\p{M}", ""), self.matching_string, self.replace_string)
-        return upper(normalized_column)
+    def __clean_str_column(self, column):
+        return column.str.replace('[^\w\s]', '').upper()
+        # return column.map(lambda x: re.sub(r'\W+', '', x)).str.upper()
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:

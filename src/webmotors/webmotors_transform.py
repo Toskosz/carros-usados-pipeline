@@ -1,6 +1,3 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace, translate, upper, substring_index, when, col, current_timestamp, lit
-from pyspark.sql.types import StringType, StructField, StructType, FloatType, IntegerType
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
 import psycopg2.extras as p
@@ -10,37 +7,6 @@ import sys
 class WebmotorsTransform:
 
     def __init__(self) -> None:
-        self.spark = SparkSession.builder.appName("webmotors transformation").getOrCreate()
-        self.matching_string, self.replace_string = self.__make_trans()
-
-        self.schema = StructType([
-            StructField("AD_ID", StringType(), True),                
-            StructField("TITULO", StringType(), True),               
-            StructField("FABRICANTE", StringType(), True),           
-            StructField("MODELO", StringType(), True),               
-            StructField("VERSAO", StringType(), True),               
-            StructField("ANO_FABRICACAO", StringType(), True),       
-            StructField("ANO_MODELO", FloatType(), True),          
-            StructField("KILOMETRAGEM", FloatType(), True),        
-            StructField("TRANSMISSAO", StringType(), True),          
-            StructField("QNTD_PORTAS", StringType(), True),          
-            StructField("CORPO_VEICULO", StringType(), True),        
-            StructField("ATRIBUTOS", StringType(), True),            
-            StructField("BLINDADO", StringType(), True),             
-            StructField("COR", StringType(), True),                  
-            StructField("TIPO_VENDEDOR", StringType(), True),        
-            StructField("CIDADE_VENDEDOR", StringType(), True),      
-            StructField("ESTADO_VENDEDOR", StringType(), True),      
-            StructField("TIPO_ANUNCIO", StringType(), True),         
-            StructField("ENTREGA_CARRO", StringType(), True),        
-            StructField("TROCA_COM_TROCO", StringType(), True),      
-            StructField("PRECO", FloatType(), True),               
-            StructField("PRECO_DESEJADO", FloatType(), True),      
-            StructField("COMENTARIO_DONO", StringType(), True),      
-            StructField("PORCENTAGEM_FIPE", StringType(), True),     
-            StructField("OPTIONALS", StringType(), True),            
-            StructField("COMBUSTIVEL", StringType(), True)
-        ])
 
         self.dummy_columns = {
             'Aceita troca':'ACEITA_TROCA',
@@ -114,11 +80,17 @@ class WebmotorsTransform:
             "COMENTARIO_DONO": [self.__clean_str_column]
         }
 
+    def __create_dummy_columns(self, row):
+        for original_name, column_name in self.dummy_columns.items():
+            if original_name in row["RECURSOS"] or original_name in row['OPTIONALS']:
+                row[column_name] = True
+            else:
+                row[column_name] = False
+        return row
+
     def run(self, default_dataframe) -> None:
         try:
-            data = self.spark.createDataFrame(default_dataframe, schema=self.schema)
-
-            print("[LOG] Built DataFrame.")
+            df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop('RECURSOS', 1)
 
             for original_name, column_name in self.dummy_columns.items():
                 data = data.withColumn(column_name, when((col("ATRIBUTOS").contains(original_name)), '1').when((col("OPTIONALS").contains(original_name)), '1').otherwise('0'))
