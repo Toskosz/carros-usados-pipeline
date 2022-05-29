@@ -1,4 +1,3 @@
-from xml.etree.ElementInclude import include
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
 from datetime import datetime
@@ -95,13 +94,10 @@ class AutolineTransform:
             "MOTOR": [self.__clean_str_column, self.__fix_empty_string]
         }
 
-    def __create_dummy_columns(self, row):
+    def __create_dummy_columns(self, df):
         for original_name, column_name in self.dummy_columns.items():
-            if original_name in row["RECURSOS"]:
-                row[column_name] = True
-            else:
-                row[column_name] = False
-        return row
+            df[column_name] = np.where(original_name in df['RECURSOS'], True, False)
+        return df
 
     def __properly_fill_na(self, df):
 
@@ -122,7 +118,7 @@ class AutolineTransform:
         return df
 
     def run(self, default_dataframe) -> None:
-        df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop('RECURSOS', axis=1)
+        df_with_dummys = self.__create_dummy_columns(default_dataframe).drop('RECURSOS', axis=1)
 
         for coluna, lst_f in self.columns_func_assigns.items():
             for f in lst_f:

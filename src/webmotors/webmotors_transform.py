@@ -84,12 +84,6 @@ class WebmotorsTransform:
         for original_name, column_name in self.dummy_columns.items():
             df[column_name] = np.where((original_name in df['ATRIBUTOS']) or (original_name in df['OPTIONALS']), True, False)
         return df
-        #for original_name, column_name in self.dummy_columns.items():
-        #    if original_name in row["ATRIBUTOS"] or original_name in row['OPTIONALS']:
-        #        row[column_name] = True
-        #    else:
-        #        row[column_name] = False
-        #return row
 
     def __properly_fill_na(self, df):
         
@@ -107,8 +101,8 @@ class WebmotorsTransform:
 
     def run(self, default_dataframe) -> None:
         try:
-            #df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop(['ATRIBUTOS', 'OPTIONALS'], axis=1)
             df_with_dummys = self.__create_dummy_columns(default_dataframe).drop(['ATRIBUTOS', 'OPTIONALS'], axis=1)
+            
             # separation of UF and ESTADO from ESTADO column
             df_with_dummys['UF_VENDEDOR'] = df_with_dummys["ESTADO_VENDEDOR"].apply(lambda st: st[st.find("(")+1:st.find(")")])
             df_with_dummys['ESTADO_VENDEDOR'] = df_with_dummys["ESTADO_VENDEDOR"].apply(lambda st: st[:st.find("(")])
