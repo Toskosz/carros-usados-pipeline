@@ -80,31 +80,35 @@ class WebmotorsTransform:
             "COMENTARIO_DONO": [self.__clean_str_column]
         }
 
-    def __create_dummy_columns(self, row):
+    def __create_dummy_columns(self, df):
         for original_name, column_name in self.dummy_columns.items():
-            if original_name in row["ATRIBUTOS"] or original_name in row['OPTIONALS']:
-                row[column_name] = True
-            else:
-                row[column_name] = False
-        return row
+            df[column_name] = np.where((original_name in df['ATRIBUTOS']) or (original_name in df['OPTIONALS']), True, False)
+        return df
+        #for original_name, column_name in self.dummy_columns.items():
+        #    if original_name in row["ATRIBUTOS"] or original_name in row['OPTIONALS']:
+        #        row[column_name] = True
+        #    else:
+        #        row[column_name] = False
+        #return row
 
     def __properly_fill_na(self, df):
-        for col in df:
-            datatype = df[col].dtype 
-            
-            if datatype == int or datatype == float:
-                df[col].fillna(0, inplace=True)
-            elif datatype == str:
-                df[col].fillna("INDISPONIVEL", inplace=True)
-            else:
-                df[col].fillna(False, inplace=True)
+        
+        str_cols = ['TITULO', 'FABRICANTE', 'MODELO', 'VERSAO', 'ANO_FABRICACAO', 'ANO_MODELO', 
+        'TRANSMISSAO', 'QNTD_PORTAS', 'CORPO_VEICULO', 'COR', 'TIPO_VENDEDOR', 'CIDADE_VENDEDOR', 
+        'ESTADO_VENDEDOR', 'UF_VENDEDOR', 'TIPO_ANUNCIO', 'COMENTARIO_DONO', 'COMBUSTIVEL']
+        num_cols = ['KILOMETRAGEM', 'PRECO', 'PRECO_DESEJADO', 'PORCENTAGEM_FIPE']
+        bool_cols = ['BLINDADO', 'ENTREGA_CARRO', 'TROCA_COM_TROCO']
+
+        df[num_cols] = df[num_cols].fillna(value=0)
+        df[bool_cols] = df[bool_cols].fillna(value=False)
+        df[str_cols] = df[str_cols].fillna(value="INDISPONIVEL")
         
         return df
 
     def run(self, default_dataframe) -> None:
         try:
-            df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop(['ATRIBUTOS', 'OPTIONALS'], 1)
-
+            #df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop(['ATRIBUTOS', 'OPTIONALS'], axis=1)
+            df_with_dummys = self.__create_dummy_columns(default_dataframe).drop(['ATRIBUTOS', 'OPTIONALS'], axis=1)
             # separation of UF and ESTADO from ESTADO column
             df_with_dummys['UF_VENDEDOR'] = df_with_dummys["ESTADO_VENDEDOR"].apply(lambda st: st[st.find("(")+1:st.find(")")])
             df_with_dummys['ESTADO_VENDEDOR'] = df_with_dummys["ESTADO_VENDEDOR"].apply(lambda st: st[:st.find("(")])
@@ -136,7 +140,7 @@ class WebmotorsTransform:
         return column.astype(float)
 
     def __clean_str_column(self, column):
-        return column.str.replace('[^\w\s]', '').upper()
+        return column.str.replace('[^\w\s]', '', regex=True).str.upper()
         # return column.map(lambda x: re.sub(r'\W+', '', x)).str.upper()
 
     def __compute_BLINDADO(self, column):

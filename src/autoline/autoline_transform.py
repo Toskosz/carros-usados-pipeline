@@ -1,3 +1,4 @@
+from xml.etree.ElementInclude import include
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
 from datetime import datetime
@@ -103,38 +104,39 @@ class AutolineTransform:
         return row
 
     def __properly_fill_na(self, df):
-        for col in df:
-            datatype = df[col].dtype 
-            
-            if datatype == int or datatype == float:
-                df[col].fillna(0, inplace=True)
-            elif datatype == str:
-                df[col].fillna("INDISPONIVEL", inplace=True)
-            else:
-                df[col].fillna(False, inplace=True)
+
+        num_cols = ['KILOMETRAGEM','PRECO','PRECO_FIPE']
+        bool_cols = ['BLINDADO','COLECIONADOR','ADAPTADO_DEFICIENCIA','FINANCIAVEL','FINANCIADO',
+        'GARANTIA_DE_FABRICA','DONO_UNICO','QUITADO','REGISTRAMENTO_PAGO','VENDEDOR_PJ',
+        'ACEITA_TROCA','IMPOSTOS_PAGOS']
+        str_cols = ['INFORMACOES_ADICIONAIS', 'CORPO_VEICULO', 'ANO_FABRICACAO', 'CIDADE', 'COR', 
+        'QNTD_PORTAS', 'EMAIL', 'MOTOR', 'COMBUSTIVEL', 'LINK_AD', 'FABRICANTE', 'CELULAR', 'MODELO', 
+        'ANO_MODELO', 'BAIRRO', 'TELEFONE', 'PLACA', 'COR_SECUNDARIA', 'TIPO_VEICULO', 'ENDERECO', 
+        'COMPLEMENTO_ENDERECO', 'DOCUMENTO_VENDEDOR', 'NOME_VENDEDOR', 'UF', 'ESTADO', 'TRANSMISSAO', 
+        'TIPO_VENDEDOR', 'VERSAO', 'WHATSAPP']
+
+        df[num_cols] = df[num_cols].fillna(value=0)
+        df[bool_cols] = df[bool_cols].fillna(value=False)
+        df[str_cols] = df[str_cols].fillna(value="INDISPONIVEL")
         
         return df
 
     def run(self, default_dataframe) -> None:
-        try:
-            df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop('RECURSOS', 1)
+        df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop('RECURSOS', axis=1)
 
-            for coluna, lst_f in self.columns_func_assigns.items():
-                for f in lst_f:
-                    df_with_dummys[coluna] = f(df_with_dummys[coluna])
+        for coluna, lst_f in self.columns_func_assigns.items():
+            for f in lst_f:
+                df_with_dummys[coluna] = f(df_with_dummys[coluna])
 
-            df_with_dummys['DATA_CARGA'] = datetime.now()
-            df_with_dummys['WEBSITE'] = "AUTOLINE"
+        df_with_dummys['DATA_CARGA'] = datetime.now()
+        df_with_dummys['WEBSITE'] = "AUTOLINE"
 
-            data_to_load = self.__properly_fill_na(df_with_dummys)
+        data_to_load = self.__properly_fill_na(df_with_dummys)
 
-            print("[LOG] Finished transformations")
+        print("[LOG] Finished transformations")
 
-            self.__load_data(data_to_load)
-            print("[LOG] Finished load to DB")
-
-        except Exception as E:
-            raise(E)
+        self.__load_data(data_to_load)
+        print("[LOG] Finished load to DB")
 
     def __to_number(self, column):
         return column.map({'ZERO': '0', 'UM': '1', 'DOIS': '2',
@@ -160,7 +162,7 @@ class AutolineTransform:
         return column.replace(to_replace=r"\\n", value="", regex=True)
 
     def __clean_str_column(self, column):
-        return column.str.replace('[^\w\s]', '').upper()
+        return column.str.replace('[^\w\s]', '', regex=True).str.upper()
         # return column.map(lambda x: re.sub(r'\W+', '', x)).str.upper()
 
     def __load_data(self,data):
