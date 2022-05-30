@@ -3,6 +3,9 @@ from util.warehouse import WarehouseConnection
 from datetime import datetime
 import psycopg2.extras as p
 import numpy as np
+from unidecode import unidecode
+import re
+import pandas as pd
 
 class AutolineTransform:
 
@@ -94,10 +97,16 @@ class AutolineTransform:
             "MOTOR": [self.__clean_str_column, self.__fix_empty_string]
         }
 
-    def __create_dummy_columns(self, df):
+    def __create_dummy_columns(self, linha):
+        linha['RECURSOS'] = str(linha['RECURSOS'])
+
         for original_name, column_name in self.dummy_columns.items():
-            df[column_name] = np.where(original_name in df['RECURSOS'], True, False)
-        return df
+            if original_name in linha['RECURSOS']:
+                linha[column_name] = True
+            else:
+                linha[column_name] = False
+        
+        return linha
 
     def __properly_fill_na(self, df):
 
@@ -118,7 +127,7 @@ class AutolineTransform:
         return df
 
     def run(self, default_dataframe) -> None:
-        df_with_dummys = self.__create_dummy_columns(default_dataframe).drop('RECURSOS', axis=1)
+        df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop('RECURSOS', axis=1)
 
         for coluna, lst_f in self.columns_func_assigns.items():
             for f in lst_f:
@@ -149,7 +158,7 @@ class AutolineTransform:
         return np.where(column=='VERDADEIRO', True, False)
         
     def __fix_empty_string(self, column):
-        return np.where(column=="", None, column)
+        return np.where(column=="", "INDISPONIVEL", column)
         
     def __compute_inverse_bool(self, column):
         return np.where(column=='VERDADEIRO', False, True)
@@ -158,8 +167,7 @@ class AutolineTransform:
         return column.replace(to_replace=r"\\n", value="", regex=True)
 
     def __clean_str_column(self, column):
-        return column.str.replace('[^\w\s]', '', regex=True).str.upper()
-        # return column.map(lambda x: re.sub(r'\W+', '', x)).str.upper()
+        return column.map(lambda x: re.sub('[!,*)@#%(&$_?.^]', '', unidecode(x.strip())) if not pd.isna(x) else x).str.upper()
 
     def __load_data(self,data):
         with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
