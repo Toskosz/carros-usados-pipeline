@@ -1,8 +1,11 @@
 from datetime import datetime
 from util.creds import get_warehouse_creds
 from util.warehouse import WarehouseConnection
+from unidecode import unidecode
 import psycopg2.extras as p
 import numpy as np
+import pandas as pd
+import re
 
 class WebmotorsTransform:
 
@@ -80,10 +83,18 @@ class WebmotorsTransform:
             "COMENTARIO_DONO": [self.__clean_str_column]
         }
 
-    def __create_dummy_columns(self, df):
+    def __create_dummy_columns(self, linha):
+        
+        linha['ATRIBUTOS'] = str(linha['ATRIBUTOS'])
+        linha['OPTIONALS'] = str(linha['OPTIONALS'])
+
         for original_name, column_name in self.dummy_columns.items():
-            df[column_name] = np.where((original_name in df['ATRIBUTOS']) or (original_name in df['OPTIONALS']), True, False)
-        return df
+            if original_name in linha['ATRIBUTOS'] or original_name in linha['OPTIONALS']:
+                linha[column_name] = True
+            else:
+                linha[column_name] = False
+
+        return linha
 
     def __properly_fill_na(self, df):
         
@@ -101,12 +112,12 @@ class WebmotorsTransform:
 
     def run(self, default_dataframe) -> None:
         try:
-            df_with_dummys = self.__create_dummy_columns(default_dataframe).drop(['ATRIBUTOS', 'OPTIONALS'], axis=1)
-            
+            df_with_dummys = default_dataframe.apply(self.__create_dummy_columns, axis=1).drop(['ATRIBUTOS', 'OPTIONALS'], axis=1)
+
             # separation of UF and ESTADO from ESTADO column
             df_with_dummys['UF_VENDEDOR'] = df_with_dummys["ESTADO_VENDEDOR"].apply(lambda st: st[st.find("(")+1:st.find(")")])
             df_with_dummys['ESTADO_VENDEDOR'] = df_with_dummys["ESTADO_VENDEDOR"].apply(lambda st: st[:st.find("(")])
-            
+
             for coluna, lst_f in self.columns_func_assigns.items():
                 for f in lst_f:
                     df_with_dummys[coluna] = f(df_with_dummys[coluna])
@@ -134,8 +145,7 @@ class WebmotorsTransform:
         return column.astype(float)
 
     def __clean_str_column(self, column):
-        return column.str.replace('[^\w\s]', '', regex=True).str.upper()
-        # return column.map(lambda x: re.sub(r'\W+', '', x)).str.upper()
+        return column.map(lambda x: re.sub('[!,*)@#%(&$_?.^]', '', unidecode(x.strip())) if not pd.isna(x) else x).str.upper()
 
     def __compute_BLINDADO(self, column):
         return np.where(column=="S", True, False)
