@@ -5,7 +5,6 @@ src/__pycache__
 src/autoline/__pycache__
 src/webmotors/__pycache__
 *.pyc
-<<<<<<< HEAD
-=======
 src/autoline/__pycache__/autoline_extract.cpython-39.pyc
->>>>>>> d7476258060cb13694dc6146a0a224425529463f
+env
+scheduler/
