@@ -76,7 +76,7 @@ def __get_columns_func_assigns():
         "COMENTARIO_DONO": [__clean_str_column]}
 
 def __create_dummy_columns(linha):
-    for original_name, column_name in __get_dummy_columns.items():
+    for original_name, column_name in __get_dummy_columns().items():
         if original_name in str(linha['ATRIBUTOS']) or original_name in str(linha['OPTIONALS']):
             linha[column_name] = True
         else:
@@ -118,7 +118,7 @@ def __load_data(data):
         p.execute_batch(curr, __get_exchange_insert_query(data,"stg.webmotors"), data.values)
         curr.execute(open("src/sql_scripts/webmotors_to_star_schema.sql", "r").read())
 
-def __get_exchange_insert_query(self,df,table) -> str:
+def __get_exchange_insert_query(df,table) -> str:
     df_columns = list(df)
     
     return "INSERT INTO {} ({}) {}".format(table, ", ".join(df_columns), "VALUES ({})".format(", ".join(["%s" for _ in df_columns])))
@@ -130,7 +130,7 @@ def run(default_dataframe) -> None:
     df_with_dummys['UF_VENDEDOR'] = df_with_dummys["ESTADO_VENDEDOR"].apply(lambda st: st[st.find("(")+1:st.find(")")])
     df_with_dummys['ESTADO_VENDEDOR'] = df_with_dummys["ESTADO_VENDEDOR"].apply(lambda st: st[:st.find("(")])
 
-    for coluna, lst_f in __get_columns_func_assigns.items():
+    for coluna, lst_f in __get_columns_func_assigns().items():
         for f in lst_f:
             df_with_dummys[coluna] = f(df_with_dummys[coluna])
 

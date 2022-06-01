@@ -19,12 +19,11 @@ def __get_req_headers():
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:96.0) Gecko/20100101 Firefox/96.0'}
 
 def __extract_data(data):
-    # This is ugly im aware. I just cant think of something else rn
-    return pd.DataFrame().from_dict(data)[['AdId','AdditionalInformation','BodyTypeName','BuiltYear','CityName','ColorName','DoorNumberName','Email','EngineTypeName','Features'
+    return {k : data[k] for k in ['AdId','AdditionalInformation','BodyTypeName','BuiltYear','CityName','ColorName','DoorNumberName','Email','EngineTypeName','Features'
     ,'FuelTypeName','IsArmored','IsCollectorVehicle','IsDisabilityAdapted','IsEligibleforFinancing','IsFinanced','IsManufacturerWarrantyActive','IsOneOwnerUsed','IsPaid'
     ,'IsRegistrationPaid','IsSellerPj','IsSwapNotAccepted','IsTaxPaid','Km','LinkAnuncio','MakeName','MobilePhoneNumber','ModelName','ModelYear','Neighborhood','PhoneNumber'
     ,'Price','PriceFipe','RegistrationPlate','SecondaryColorName','SegmentName','SellerAddress1','SellerAddress2','SellerDocumentNumber','SellerName','StateAbbreviation'
-    ,'StateName','TransmissionName','TypeSellerName','VersionName','WhatsAppNumber']]
+    ,'StateName','TransmissionName','TypeSellerName','VersionName','WhatsAppNumber']}
 
 def __get_cars_ids(n_cars) -> list:
     ids = []
@@ -53,7 +52,7 @@ def __get_recent_cars(max_batch_size) -> pd.DataFrame:
         # API limit
         sleep(5)
 
-        cars = cars.append(__extract_data(requests.get(url=''.join(["https://api2.autoline.com.br/api/pub/", str(id)]), headers=__get_req_headers).json()), ignore_index=True)
+        cars = cars.append(__extract_data(requests.get(url=''.join(["https://api2.autoline.com.br/api/pub/", str(id)]), headers=__get_req_headers()).json()), ignore_index=True)
 
     cars.columns = ["AD_ID","INFORMACOES_ADICIONAIS","CORPO_VEICULO","ANO_FABRICACAO","CIDADE","COR","QNTD_PORTAS","EMAIL","MOTOR","RECURSOS","COMBUSTIVEL","BLINDADO"
     ,"COLECIONADOR","ADAPTADO_DEFICIENCIA","FINANCIAVEL","FINANCIADO","GARANTIA_DE_FABRICA","DONO_UNICO","QUITADO","REGISTRAMENTO_PAGO","VENDEDOR_PJ","ACEITA_TROCA","IMPOSTOS_PAGOS"
