@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 import math
+import logging
 
 
 def __get_req_headers():
@@ -62,8 +63,8 @@ def __get_recent_cars(max_batch_size) -> pd.DataFrame:
     return cars.head(max_batch_size)
 
 def run(max_batch_size):
-    print("[LOG] Extracting...")
+    logging.info("[LOG] Extracting...")
     data = __get_recent_cars(max_batch_size)
     # TODO: SEND RAW EXTRACT TO S3
-    print("[LOG] Done extracting.")
+    logging.info("[LOG] Done extracting.")
     return data

@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 from time import sleep
 from unidecode import unidecode
+import logging
 
 
 def __get_req_headers():
@@ -76,7 +77,7 @@ def __get_optionals(op_url):
     try:
         tmp_specs = op_response.json()['Specification']
     except Exception as E:
-        print(op_url)
+        logging.error(op_url)
         raise(E)
 
     if 'Fuel' in tmp_specs:
@@ -143,8 +144,8 @@ def __get_recent_cars(max_batch_size) -> pd.DataFrame:
     return cars.head(max_batch_size)
     
 def run(max_batch_size):
-    print("[LOG] Extracting...")
+    logging.info("[LOG] Extracting...")
     data = __get_recent_cars(max_batch_size)
     # TODO: Load raw data to S3
-    print("[LOG] Done extracting.")
+    logging.info("[LOG] Done extracting.")
     return data

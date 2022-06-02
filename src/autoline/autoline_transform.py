@@ -6,6 +6,7 @@ import numpy as np
 from unidecode import unidecode
 import re
 import pandas as pd
+import logging
 
 
 def __get_dummy_columns():
@@ -169,7 +170,7 @@ def run(default_dataframe) -> None:
 
     data_to_load = __properly_fill_na(df_with_dummys)
 
-    print("[LOG] Finished transformations")
+    logging.info("[LOG] Finished transformations")
 
     __load_data(data_to_load)
-    print("[LOG] Finished load to DB")
+    logging.info("[LOG] Finished load to DB")

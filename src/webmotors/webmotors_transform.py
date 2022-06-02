@@ -6,6 +6,7 @@ import psycopg2.extras as p
 import numpy as np
 import pandas as pd
 import re
+import logging
 
 def __get_dummy_columns(): 
     return {'Aceita troca':'ACEITA_TROCA',
@@ -139,7 +140,7 @@ def run(default_dataframe) -> None:
 
     data_to_load = __properly_fill_na(df_with_dummys)
 
-    print("[LOG] Finished transformations")
+    logging.info("[LOG] Finished transformations")
 
     __load_data(data_to_load)
-    print("[LOG] Finished load to DB")
+    logging.info("[LOG] Finished load to DB")
