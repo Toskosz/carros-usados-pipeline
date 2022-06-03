@@ -8,13 +8,14 @@ import logging
 
 def run() -> None:
     try:
-        logging.basicConfig(filename="pipeline",
-                            filemode='a',
+        logging.basicConfig(filename="./pipeline.log",
+                            filemode='w',
                             format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
                             datefmt='%H:%M:%S', 
                             level=logging.DEBUG)
-        autoline_transform.run(autoline_extract.run(10))
-        webmotors_transform.run(webmotors_extract.run(10))
+                            
+        autoline_transform.run(autoline_extract.run(20))
+        webmotors_transform.run(webmotors_extract.run(20))
     except Exception as E:
         logging.error(E)
         notify_erro(E)
