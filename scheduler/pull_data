@@ -1,3 +1,3 @@
 SHELL=/bin/bash
 HOME=/
-1 */1 * * * WAREHOUSE_USER=postgres WAREHOUSE_PASSWORD=databasepasswordaryasasuke WAREHOUSE_DB=cars WAREHOUSE_HOST=warehouse WAREHOUSE_PORT=5432 EMAIL_SENDER=tokmas.co@gmail.com EMAIL_RECEIVER=thiago.tokarski2001@gmail.com EMAIL_PASSWORD=Nr74gkegYrRBAjP PYTHONPATH=/code/src /usr/local/bin/python /code/src/main.py
+1 */1 * * * WAREHOUSE_USER= WAREHOUSE_PASSWORD= WAREHOUSE_DB= WAREHOUSE_HOST= WAREHOUSE_PORT= EMAIL_SENDER= EMAIL_RECEIVER= EMAIL_PASSWORD= PYTHONPATH=/code/src /usr/local/bin/python /code/src/main.py
