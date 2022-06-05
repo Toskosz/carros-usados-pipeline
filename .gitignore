@@ -7,4 +7,3 @@ src/webmotors/__pycache__
 *.pyc
 src/autoline/__pycache__/autoline_extract.cpython-39.pyc
 env
-scheduler/
