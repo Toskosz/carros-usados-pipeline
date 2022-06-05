@@ -152,7 +152,8 @@ def __load_data(data):
     with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
         curr.execute('truncate table stg.autoline')
         p.execute_batch(curr, __get_exchange_insert_query(data,"stg.autoline"), data.values)
-        curr.execute(open("src/sql_scripts/autoline_to_star_schema.sql", "r").read())
+        # Path to sql on docker
+        curr.execute(open("/code/src/sql_scripts/autoline_to_star_schema.sql", "r").read())
 
 def __get_exchange_insert_query(df,table) -> str:
     df_columns = list(df)

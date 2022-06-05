@@ -8,6 +8,7 @@ import logging
 
 def run() -> None:
     try:
+        notify_erro("Começando extração.")
         logging.basicConfig(filename="./pipeline.log",
                             filemode='w',
                             format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
