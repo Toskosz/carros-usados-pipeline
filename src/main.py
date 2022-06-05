@@ -1,4 +1,3 @@
-from lib2to3.pgen2.pgen import PgenGrammar
 from autoline import autoline_extract
 from autoline import autoline_transform
 from webmotors import webmotors_extract
@@ -8,7 +7,7 @@ import logging
 
 def run() -> None:
     try:
-        notify_erro("Começando extração.")
+        notify_erro("Comecando extracao.")
         logging.basicConfig(filename="./pipeline.log",
                             filemode='w',
                             format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
