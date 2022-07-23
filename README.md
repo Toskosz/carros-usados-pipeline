@@ -13,6 +13,7 @@ It's a ETL data pipeline that extracts information about used cars ad's from mul
 - https://www.autoline.com.br/ 
 
 ## What it looks like
+![Final Dashboard](https://github.com/Toskosz/carros-usados-pipeline/blob/mem_test/media/metabase_dashboard.png)
 
 ## Improvements to be made
 - Store the raw files extracted in S3
