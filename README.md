@@ -5,7 +5,7 @@ https://tokmas.space/public/dashboard/49a73de4-8384-4cbc-88e4-afcda2b5dfc5
 It's a ETL data pipeline that extracts information about used cars ad's from multiple sources, compiles it into a datawarehouse and makes data visualization through MetaBase.
 
 ## Diagram
-![Design](https://github.com/Toskosz/carros-usados-pipeline/blob/pandas/media/used-cars-pipeline-diagram_page-0001.jpg)
+![Design](https://github.com/Toskosz/carros-usados-pipeline/blob/main/media/used-cars-pipeline-diagram_page-0001.jpg)
 
 ## Current data sources
 
@@ -13,7 +13,7 @@ It's a ETL data pipeline that extracts information about used cars ad's from mul
 - https://www.autoline.com.br/ 
 
 ## What it looks like
-![Final Dashboard](https://github.com/Toskosz/carros-usados-pipeline/blob/mem_test/media/metabase_dashboard.png)
+![Final Dashboard](https://github.com/Toskosz/carros-usados-pipeline/blob/main/media/metabase_dashboard.png)
 
 ## Improvements to be made
 - Store the raw files extracted in S3
