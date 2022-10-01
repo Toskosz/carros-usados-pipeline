@@ -101,7 +101,7 @@ def __create_dummy_columns(linha):
             linha[column_name] = True
         else:
             linha[column_name] = False
-    
+
     return linha
 
 def __properly_fill_na(df):
@@ -126,7 +126,7 @@ def __to_number(column):
     return column.map({'ZERO': '0', 'UM': '1', 'DOIS': '2',
         'TRES': '3', 'QUATRO': '4', 'CINCO': '5', 'SEIS': '6', 
         'SETE': '7', 'OITO': '8', 'NOVE': '9'}, na_action='ignore')
-        
+
 def __to_float(column):
     return column.astype(float)
 
@@ -135,13 +135,13 @@ def __to_str(column):
 
 def __compute_bool(column):
     return np.where(column=='VERDADEIRO', True, False)
-        
+
 def __fix_empty_string(column):
     return np.where(column=="", "INDISPONIVEL", column)
-        
+
 def __compute_inverse_bool(column):
     return np.where(column=='VERDADEIRO', False, True)
-        
+
 def __remove_jump_line(column):
     return column.replace(to_replace=r"\\n", value="", regex=True)
 
@@ -152,7 +152,6 @@ def __load_data(data):
     with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
         curr.execute('truncate table stg.autoline')
         p.execute_batch(curr, __get_exchange_insert_query(data,"stg.autoline"), data.values)
-        # Path to sql on docker
         curr.execute(open("/code/src/sql_scripts/autoline_to_star_schema.sql", "r").read())
 
 def __get_exchange_insert_query(df,table) -> str:
@@ -172,6 +171,6 @@ def run(default_dataframe) -> None:
     data_to_load = __properly_fill_na(df_with_dummys)
 
     logging.info("[LOG] Finished transformations")
-
+    logging.info(str(data_to_load.shape))
     __load_data(data_to_load)
     logging.info("[LOG] Finished load to DB")

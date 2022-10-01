@@ -1,5 +1,3 @@
-from time import sleep
-import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 import math
@@ -26,12 +24,12 @@ def __extract_data(data):
     ,'Price','PriceFipe','RegistrationPlate','SecondaryColorName','SegmentName','SellerAddress1','SellerAddress2','SellerDocumentNumber','SellerName','StateAbbreviation'
     ,'StateName','TransmissionName','TypeSellerName','VersionName','WhatsAppNumber']}
 
-def __get_cars_ids(n_cars) -> list:
+def __get_cars_ids(n_cars, client) -> list:
     ids = []
     pages = math.ceil(n_cars/24)
 
-    for i in range(1, pages + 1):        
-        soup = BeautifulSoup(requests.get(url="https://busca.autoline.com.br/comprar/carros/novos-seminovos-usados/todos-os-estados/todas-as-cidades/todas-as-marcas/todos-os-modelos/todas-as-versoes/todos-os-anos/todas-as-cores/todos-os-precos/?sort=20&page=" + str(i)).text, features="html.parser")
+    for i in range(1, pages + 1):
+        soup = BeautifulSoup(client.get(url="https://busca.autoline.com.br/comprar/carros/novos-seminovos-usados/todos-os-estados/todas-as-cidades/todas-as-marcas/todos-os-modelos/todas-as-versoes/todos-os-anos/todas-as-cores/todos-os-precos/?sort=20&page=" + str(i)).text, features="html.parser")
 
         infos = soup.find_all("li", attrs={'class':'nm-product-item'})
         for info in infos:
@@ -41,19 +39,18 @@ def __get_cars_ids(n_cars) -> list:
                 continue
     return ids
 
-def __get_recent_cars(max_batch_size) -> pd.DataFrame:
+def __get_recent_cars(max_batch_size, client) -> pd.DataFrame:
+
+    client.headers.update(__get_req_headers())
+
     cars = pd.DataFrame(columns=['AdId','AdditionalInformation','BodyTypeName','BuiltYear','CityName','ColorName','DoorNumberName','Email','EngineTypeName','Features'
     ,'FuelTypeName','IsArmored','IsCollectorVehicle','IsDisabilityAdapted','IsEligibleforFinancing','IsFinanced','IsManufacturerWarrantyActive','IsOneOwnerUsed','IsPaid'
     ,'IsRegistrationPaid','IsSellerPj','IsSwapNotAccepted','IsTaxPaid','Km','LinkAnuncio','MakeName','MobilePhoneNumber','ModelName','ModelYear','Neighborhood','PhoneNumber'
     ,'Price','PriceFipe','RegistrationPlate','SecondaryColorName','SegmentName','SellerAddress1','SellerAddress2','SellerDocumentNumber','SellerName','StateAbbreviation'
     ,'StateName','TransmissionName','TypeSellerName','VersionName','WhatsAppNumber'])
 
-    for id in __get_cars_ids(max_batch_size):
-        
-        # API limit
-        sleep(5)
-
-        cars = cars.append(__extract_data(requests.get(url=''.join(["https://api2.autoline.com.br/api/pub/", str(id)]), headers=__get_req_headers()).json()), ignore_index=True)
+    for id in __get_cars_ids(max_batch_size, client):
+        cars = cars.append(__extract_data(client.get(url=''.join(["https://api2.autoline.com.br/api/pub/", str(id)])).json()), ignore_index=True)
 
     cars.columns = ["AD_ID","INFORMACOES_ADICIONAIS","CORPO_VEICULO","ANO_FABRICACAO","CIDADE","COR","QNTD_PORTAS","EMAIL","MOTOR","RECURSOS","COMBUSTIVEL","BLINDADO"
     ,"COLECIONADOR","ADAPTADO_DEFICIENCIA","FINANCIAVEL","FINANCIADO","GARANTIA_DE_FABRICA","DONO_UNICO","QUITADO","REGISTRAMENTO_PAGO","VENDEDOR_PJ","ACEITA_TROCA","IMPOSTOS_PAGOS"
@@ -62,9 +59,9 @@ def __get_recent_cars(max_batch_size) -> pd.DataFrame:
 
     return cars.head(max_batch_size)
 
-def run(max_batch_size):
+def run(max_batch_size, client):
     logging.info("[LOG] Extracting...")
-    data = __get_recent_cars(max_batch_size)
+    data = __get_recent_cars(max_batch_size, client)
     # TODO: SEND RAW EXTRACT TO S3
     logging.info("[LOG] Done extracting.")
     return data

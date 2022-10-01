@@ -8,7 +8,7 @@ import pandas as pd
 import re
 import logging
 
-def __get_dummy_columns(): 
+def __get_dummy_columns():
     return {'Aceita troca':'ACEITA_TROCA',
         'Alienado':'ALIENADO',
         'Garantia de fábrica':'GARANTIA_DE_FABRICA',
@@ -95,7 +95,7 @@ def __properly_fill_na(df):
     df[num_cols] = df[num_cols].fillna(value=0)
     df[bool_cols] = df[bool_cols].fillna(value=False)
     df[str_cols] = df[str_cols].fillna(value="INDISPONIVEL")
-        
+
     return df
 
 def __to_str(column):
@@ -117,12 +117,11 @@ def __load_data(data):
     with WarehouseConnection(get_warehouse_creds()).managed_cursor() as curr:
         curr.execute('truncate table stg.webmotors')
         p.execute_batch(curr, __get_exchange_insert_query(data,"stg.webmotors"), data.values)
-        # Path to sql on docker
         curr.execute(open("/code/src/sql_scripts/webmotors_to_star_schema.sql", "r").read())
 
 def __get_exchange_insert_query(df,table) -> str:
     df_columns = list(df)
-    
+
     return "INSERT INTO {} ({}) {}".format(table, ", ".join(df_columns), "VALUES ({})".format(", ".join(["%s" for _ in df_columns])))
 
 def run(default_dataframe) -> None:

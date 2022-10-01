@@ -1,6 +1,4 @@
-import requests
 import pandas as pd
-from time import sleep
 from unidecode import unidecode
 import logging
 
@@ -32,12 +30,11 @@ def __load_specs(specs) -> dict:
 
     if 'BodyType' in specs.keys():
         tmp_row['CORPO_VEICULO'] = specs['BodyType']
-    
+
     if 'VehicleAttributes' in specs.keys():
         # list of dicts
         tmp_row['ATRIBUTOS'] = specs['VehicleAttributes']
-        
-        
+
     tmp_row['BLINDADO'] = specs['Armored']
     tmp_row['COR'] = specs['Color']['Primary']
 
@@ -48,7 +45,7 @@ def __load_seller(seller) -> dict:
 
     tmp_row['TIPO_VENDEDOR'] = seller['SellerType']
 
-    if 'City' in seller.keys(): 
+    if 'City' in seller.keys():
         tmp_row['CIDADE_VENDEDOR'] = seller['City']
 
     tmp_row['ESTADO_VENDEDOR'] = seller['State']
@@ -65,15 +62,11 @@ def __load_prices(prices) -> dict:
     tmp_row['PRECO_DESEJADO'] = prices['SearchPrice']
     return tmp_row
 
-def __get_optionals(op_url):
+def __get_optionals(op_url, client):
     tmp_row = {}
 
-    op_response = requests.get(url = op_url, headers=__get_req_headers())
-    while op_response.status_code >= 500:
-        op_response = requests.get(url = op_url, headers=__get_req_headers())
+    op_response = client.get(url = op_url)
 
-    sleep(5)
-    
     try:
         tmp_specs = op_response.json()['Specification']
     except Exception as E:
@@ -88,7 +81,7 @@ def __get_optionals(op_url):
 
     return tmp_row
 
-def __load_car(car) -> dict:
+def __load_car(car, client) -> dict:
     tmp_row = {}
     tmp_row['AD_ID'] = car['UniqueId']
 
@@ -102,7 +95,7 @@ def __load_car(car) -> dict:
     if 'FipePercent' in car.keys():
         tmp_row['PORCENTAGEM_FIPE'] = car['FipePercent']
 
-    tmp_row.update(__get_optionals(__make_opt_url(tmp_row)))
+    tmp_row.update(__get_optionals(__make_opt_url(tmp_row), client))
 
     return tmp_row
 
@@ -110,14 +103,16 @@ def __make_opt_url(tmp_row):
     tmp_versao = unidecode(tmp_row['VERSAO'])
     tmp_fabricante = unidecode(tmp_row['FABRICANTE'])
     tmp_modelo = unidecode(tmp_row['MODELO'])
-    
+
     op_url = "https://www.webmotors.com.br/api/detail/car/" + tmp_fabricante.lower().replace(' ','-') + "/" + tmp_modelo.replace(' ', '-').lower() + "/" + \
     tmp_versao.replace('.','').replace(' ','-').lower() + "/" + tmp_row['QNTD_PORTAS'] + "-portas/" + tmp_row['ANO_FABRICACAO'] + "-" + str(int(tmp_row['ANO_MODELO'])) + "/" + \
     str(tmp_row['AD_ID'])
-    
-    return op_url   
 
-def __get_recent_cars(max_batch_size) -> pd.DataFrame:
+    return op_url
+
+def __get_recent_cars(max_batch_size, client) -> pd.DataFrame:
+
+    client.headers.update(__get_req_headers())
 
     cars = pd.DataFrame(columns=['AD_ID','TITULO','FABRICANTE','MODELO','VERSAO','ANO_FABRICACAO','ANO_MODELO','KILOMETRAGEM','TRANSMISSAO','QNTD_PORTAS','CORPO_VEICULO',
     'ATRIBUTOS','BLINDADO','COR','TIPO_VENDEDOR','CIDADE_VENDEDOR','ESTADO_VENDEDOR','TIPO_ANUNCIO','ENTREGA_CARRO','TROCA_COM_TROCO','PRECO','PRECO_DESEJADO','COMENTARIO_DONO',
@@ -128,24 +123,19 @@ def __get_recent_cars(max_batch_size) -> pd.DataFrame:
     while len(cars.index) <= max_batch_size:
         url = ''.join(['https://www.webmotors.com.br/api/search/car?url=https://www.webmotors.com.br/carros/estoque?o=8&actualPage='
         , str(counter), '&displayPerPage=24&order=8&showMenu=true&showCount=true&showBreadCrumb=true&testAB=false&returnUrl=false'])
-        
-        response = requests.get(url = url, headers=__get_req_headers())
-        while response.status_code >= 500:
-            response = requests.get(url = url, headers=__get_req_headers())
 
-        # API restrictions
-        sleep(5)
+        response = client.get(url = url)
 
         for car in response.json()['SearchResults']:
-            cars = cars.append(__load_car(car), ignore_index=True)
-        
+            cars = cars.append(__load_car(car, client), ignore_index=True)
+
         counter += 1
-    
+
     return cars.head(max_batch_size)
-    
-def run(max_batch_size):
+
+def run(max_batch_size, client):
     logging.info("[LOG] Extracting...")
-    data = __get_recent_cars(max_batch_size)
+    data = __get_recent_cars(max_batch_size, client)
     # TODO: Load raw data to S3
     logging.info("[LOG] Done extracting.")
     return data
